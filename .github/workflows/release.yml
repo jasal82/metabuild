@@ -5,40 +5,30 @@ on:
     tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
 
 env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   CARGO_TERM_COLOR: always
 
 jobs:
-  windows:
-    runs-on: windows-latest
-
-    defaults:
-      run:
-        shell: bash
-
-    steps:
-      - uses: actions/checkout@v2
-      - name: Test
-        run: cargo test --release
-      - name: Build
-        run: cargo build --release
-      - name: Upload executable
-        run: |
-          cp ./target/release/mb.exe ./metabuild-${GITHUB_REF##*/}-windows-x86_64.exe
-          ./.github/workflows/upload_asset.sh \
-            ./metabuild-${GITHUB_REF##*/}-windows-x86_64.exe $GITHUB_TOKEN
-
-  linux:
-    runs-on: ubuntu-latest
+  publish:
+    name: Publish for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: mb
+            asset_name: mb-${{ github.ref }}-linux-x86_64
+          - os: windows-latest
+            artifact_name: mb.exe
+            asset_name: mb-${{ github.ref }}-windows-x86_64.exe
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Test
-        run: cargo test --release
-      - name: Build
-        run: cargo build --release
-      - name: Upload executable
-        run: |
-          cp ./target/release/mb ./metabuild-${GITHUB_REF##*/}-linux-x86_64
-          ./.github/workflows/upload_asset.sh \
-            ./metabuild-${GITHUB_REF##*/}-linux-x86_64 $GITHUB_TOKEN
+    - uses: actions/checkout@v3
+    - name: Build
+      run: cargo build --release --locked
+    - name: Upload binaries to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: target/release/${{ matrix.artifact_name }}
+        asset_name: ${{ matrix.asset_name }}
+        tag: ${{ github.ref }}
