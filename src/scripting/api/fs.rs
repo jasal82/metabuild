@@ -98,23 +98,26 @@ mod tests {
     fn test_fs() {
         let temp_dir = tempdir().unwrap();
 
-        let rust_files = glob("**/*.rs").unwrap();
-        assert!(rust_files.iter().any(|e| e.clone().into_immutable_string().unwrap() == "src/api/fs.rs"));
-        assert!(exists("src/api/fs.rs").unwrap());
-        assert!(!exists("src/api/fs.rs.not_exists").unwrap());
-        assert!(is_file("src/api/fs.rs").unwrap());
-        assert!(!is_file("src/api").unwrap());
-        assert!(is_dir("src/api").unwrap());
-        assert!(!is_dir("src/api/fs.rs").unwrap());
+        let files = glob("tests/**/*.txt").unwrap();
+        assert!(files.iter().any(|e| e.clone().into_immutable_string().unwrap() == "tests/subdir/dummy.txt"));
+        assert!(exists("tests/subdir/dummy.txt").unwrap());
+        assert!(!exists("tests/subdir/doesnt_exist").unwrap());
+        assert!(is_file("tests/subdir/dummy.txt").unwrap());
+        assert!(!is_file("tests/subdir").unwrap());
+        assert!(!is_file("tests/subdir/doesnt_exist").unwrap());
+        assert!(is_dir("tests/subdir").unwrap());
+        assert!(!is_dir("tests/subdir/dummy.txt").unwrap());
+        assert!(!is_dir("tests/subdir/doesnt_exist").unwrap());
         assert!(mkdirs(temp_dir.path().join("a/b/c").to_str().unwrap()).unwrap());
         assert!(exists(temp_dir.path().join("a/b/c").to_str().unwrap()).unwrap());
         assert!(delete(temp_dir.path().join("a/b/c").to_str().unwrap()).unwrap());
         assert!(!exists(temp_dir.path().join("a/b/c").to_str().unwrap()).unwrap());
-        assert!(copy("src/api/fs.rs", temp_dir.path().join("fs.rs").to_str().unwrap()).unwrap());
-        assert!(exists(temp_dir.path().join("fs.rs").to_str().unwrap()).unwrap());
-        assert!(copy_dir("src/api", temp_dir.path().join("api").to_str().unwrap()).unwrap());
-        assert!(exists(temp_dir.path().join("api/fs.rs").to_str().unwrap()).unwrap());
-        assert!(read_file(temp_dir.path().join("fs.rs").to_str().unwrap()).unwrap().contains("pub fn register(engine: &mut Engine) {"));
-        assert!(write_file(temp_dir.path().join("fs.rs").to_str().unwrap(), "test").unwrap());
+        assert!(copy("tests/subdir/dummy.txt", temp_dir.path().join("dummy.txt").to_str().unwrap()).unwrap());
+        assert!(exists(temp_dir.path().join("dummy.txt").to_str().unwrap()).unwrap());
+        assert!(copy_dir("tests/subdir", temp_dir.path().join("subdir").to_str().unwrap()).unwrap());
+        assert!(exists(temp_dir.path().join("subdir/dummy.txt").to_str().unwrap()).unwrap());
+        assert!(read_file(temp_dir.path().join("dummy.txt").to_str().unwrap()).unwrap().contains("no content"));
+        assert!(write_file(temp_dir.path().join("dummy.txt").to_str().unwrap(), "test").unwrap());
+        assert!(read_file(temp_dir.path().join("dummy.txt").to_str().unwrap()).unwrap().contains("test"));
     }
 }
