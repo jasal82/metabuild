@@ -9,6 +9,5 @@ pub fn update() -> Result<(), Box<dyn std::error::Error>> {
         .current_version(cargo_crate_version!())
         .build()?
         .update()?;
-    println!("Update status: {}", status.version());
     Ok(())
 }
