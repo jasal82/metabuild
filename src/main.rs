@@ -56,7 +56,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(())
             }
         },
-        Commands::Update => { commands::update::update(config.merged.gitlab_token.as_deref()) },
+        Commands::Update => { commands::update::update() },
         Commands::Config { command } => match &command {
             ConfigCommands::Set { key, value, global } => {
                 config.set(key, value, to_scope(*global))
