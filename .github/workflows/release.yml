@@ -11,6 +11,10 @@ jobs:
   publish:
     name: Publish for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: read
     strategy:
       matrix:
         include:
