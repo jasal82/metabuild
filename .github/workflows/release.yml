@@ -20,10 +20,10 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact_name: mb
-            asset_name: mb-${{ github.ref }}-linux-x86_64
+            asset_name: mb-${{ github.ref_name }}-linux-x86_64
           - os: windows-latest
             artifact_name: mb.exe
-            asset_name: mb-${{ github.ref }}-windows-x86_64.exe
+            asset_name: mb-${{ github.ref_name }}-windows-x86_64.exe
 
     steps:
     - uses: actions/checkout@v3
