@@ -18,7 +18,7 @@ fn print_header() {
     println!(r#"  /_/_/_/\__/\__/\_,_/_.__/\_,_/_/_/\_,_/  "#);
     println!();
     println!(r#"  metabuild v{VERSION} - Build automation tool"#);
-    println!(r#"  Copyright (C) 2023 Johannes Asal"#);
+    println!(r#"  Copyright (c) 2023 Johannes Asal"#);
     println!();
 }
 
