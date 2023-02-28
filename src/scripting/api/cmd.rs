@@ -2,7 +2,7 @@ use rhai::Engine;
 use super::RhaiResult;
 use std::process::{Command, Stdio};
 
-#[cfg(windows)]
+#[cfg(target_os = "windows")]
 mod internal {
     use std::process::Command;
 
@@ -23,7 +23,8 @@ mod internal {
         command.arg(format!("& {{{}}}", args.iter().map(|a| quote(a)).collect::<Vec<String>>().join(" ")));
     }
 }
-#[cfg(linux)]
+
+#[cfg(target_os = "linux")]
 mod internal {
     use std::process::Command;
 
@@ -196,9 +197,9 @@ mod tests {
         let mut cmd = Cmd::new("echo");
         cmd.arg("Hello World");
         cmd.shell();
-        #[cfg(windows)]
+        #[cfg(target_os = "windows")]
         assert_eq!(cmd.output().unwrap(), "Hello World\r\n");
-        #[cfg(linux)]
+        #[cfg(target_os = "linux")]
         assert_eq!(cmd.output().unwrap(), "Hello World\n");
     }
 }
