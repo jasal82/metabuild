@@ -1,5 +1,6 @@
 use rhai::{Dynamic, Engine, Scope};
 use rhai::module_resolvers::FileModuleResolver;
+use std::path::Path;
 
 mod api;
 
@@ -31,9 +32,9 @@ fn get_available_tasks(ast: &rhai::AST) -> Vec<String> {
     tasks
 }
 
-pub fn run_tasks(tasks: &Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_tasks(file: &Path, tasks: &Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
     let engine = build_engine();
-    let ast = engine.compile_file("resources/tasks.rhai".into()).expect("Failed to compile file");
+    let ast = engine.compile_file(file.to_path_buf()).expect("Failed to compile file");
     
     if tasks.len() == 0 {
         return Err("No tasks specified".into());

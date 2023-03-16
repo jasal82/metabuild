@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -15,7 +16,11 @@ pub enum Commands {
         #[arg(short, long)]
         password: Option<String>
     },
-    Run { tasks: Vec<String> },
+    Run {
+        tasks: Vec<String>,
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+    },
     Update,
     Config {
         #[command(subcommand)]

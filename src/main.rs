@@ -1,4 +1,5 @@
 use clap::{CommandFactory, Parser};
+use std::path::PathBuf;
 use toml::Table;
 
 mod cli;
@@ -48,8 +49,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::install::install_executables(&dependency_config);
             Ok(())
         },
-        Commands::Run { tasks } => {
-            if let Err(e) = scripting::run_tasks(tasks) {
+        Commands::Run { tasks, file } => {
+            if let Err(e) = scripting::run_tasks(file.as_ref().unwrap_or(&PathBuf::from("build.rhai")), tasks) {
                 Cli::command().print_help().unwrap();
                 Err(e)
             } else {
