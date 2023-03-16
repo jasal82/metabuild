@@ -15,7 +15,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - { name: Linux, distro: ubuntu-latest }
+          - { name: Linux-OpenSSL1, distro: ubuntu-20.04 }
+          - { name: Linux-OpenSSL3, distro: ubuntu-22.04 }
           - { name: Windows, distro: windows-latest }
         toolchain: [nightly, stable]
 
