@@ -1,6 +1,9 @@
 [package]
 name = "mb"
 version = "0.2.0"
+description = "Build automation tool"
+authors = ["Johannes Asal"]
+license = "MIT"
 edition = "2021"
 
 [dependencies]
