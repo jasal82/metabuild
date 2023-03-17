@@ -16,10 +16,10 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - { name: Linux-Debian-buster, host: ubuntu-latest, container: "rust:slim-buster" }
-          - { name: Linux-Debian-bullseye, host: ubuntu-latest, container: "rust:slim-bullseye" }
-          - { name: Linux-Alpine-3.16, host: ubuntu-latest, container: "rust:alpine3.16" }
-          - { name: Windows, host: windows-latest, container: null }
+          - { name: linux-debian-buster, host: ubuntu-latest, container: "debian:buster-slim" }
+          - { name: linux-debian-bullseye, host: ubuntu-latest, container: "debian:bullseye-slim" }
+          - { name: linux-alpine-3.16, host: ubuntu-latest, container: "alpine:3.16" }
+          - { name: windows, host: windows-latest, container: null }
         toolchain: [nightly, stable]
 
     steps:
@@ -34,13 +34,13 @@ jobs:
           override: true
       
       - name: Install build requirements
-        if: matrix.os.container != 'rust:alpine3.16' && matrix.os.host != 'windows-latest'
+        if: matrix.os.container != 'alpine:3.16' && matrix.os.host != 'windows-latest'
         run: |
           apt-get update
           apt-get install -y libssl-dev pkg-config
       
       - name: Install build requirements
-        if: matrix.os.container == 'rust:alpine3.16'
+        if: matrix.os.container == 'alpine:3.16'
         run: |
           apk update
           apk add build-base openssl-dev pkgconfig
