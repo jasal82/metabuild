@@ -41,7 +41,7 @@ jobs:
         if: matrix.container == 'rust:alpine3.16'
         run: |
           apk update
-          apk add openssl-dev pkgconfig
+          apk add build-base openssl-dev pkgconfig
           cargo build --release --locked
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2

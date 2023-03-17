@@ -43,7 +43,7 @@ jobs:
         if: matrix.os.container == 'rust:alpine3.16'
         run: |
           apk update
-          apk add openssl-dev pkgconfig
+          apk add build-base openssl-dev pkgconfig
 
       - name: Build
         uses: actions-rs/cargo@v1
