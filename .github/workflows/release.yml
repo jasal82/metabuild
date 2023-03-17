@@ -51,6 +51,6 @@ jobs:
       if: matrix.os == 'windows-latest'
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: target/wix/mb-${{ env.version }}-x86_64.msi
+        file: target/wix/mb-${{ env.BUILD_VERSION }}-x86_64.msi
         asset_name: metabuild-${{ github.ref_name }}-x86_64.msi
         tag: ${{ github.ref }}
