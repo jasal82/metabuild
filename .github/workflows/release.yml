@@ -46,8 +46,9 @@ jobs:
         file: target/release/${{ matrix.artifact_name }}
         asset_name: ${{ matrix.asset_name }}
         tag: ${{ github.ref }}
-    - name: Upload installers to release
+    - name: Upload Windows installer to release
       uses: svenstaro/upload-release-action@v2
+      if: matrix.os == 'windows-latest'
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: target/wix/mb-${{ env.version }}-x86_64.msi
