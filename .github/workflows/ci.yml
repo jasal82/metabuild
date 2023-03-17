@@ -10,14 +10,16 @@ jobs:
     name: "${{ matrix.os.name }} ${{ matrix.test.name }} (${{ matrix.toolchain }})"
     continue-on-error: false
     runs-on: ${{ matrix.os.distro }}
+    container: ${{ matrix.os.container }}
 
     strategy:
       fail-fast: false
       matrix:
         os:
-          - { name: Linux-OpenSSL1, distro: ubuntu-20.04 }
-          - { name: Linux-OpenSSL3, distro: ubuntu-22.04 }
-          - { name: Windows, distro: windows-latest }
+          - { name: Linux-Debian-buster, host: ubuntu-latest, container: rust:buster-slim }
+          - { name: Linux-Debian-bullseye, host: ubuntu-latest, container: rust:bullseye-slim }
+          - { name: Linux-Alpine-3.16, host: ubuntu-latest, container: rust:alpine3.16 }
+          - { name: Windows, host: windows-latest, container: null }
         toolchain: [nightly, stable]
 
     steps:
