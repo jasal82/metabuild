@@ -14,9 +14,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - container: "rust:buster-slim"
+          - container: "rust:slim-buster"
             asset_name: mb-${{ github.ref_name }}-linux-x86_64-debian-buster
-          - container: "rust:bullseye-slim"
+          - container: "rust:slim-bullseye"
             asset_name: mb-${{ github.ref_name }}-linux-x86_64-debian-bullseye
           - container: "rust:alpine3.16"
             asset_name: mb-${{ github.ref_name }}-linux-x86_64-alpine-3.16
