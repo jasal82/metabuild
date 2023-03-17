@@ -30,7 +30,7 @@ jobs:
         if: matrix.os.container != 'alpine:3.16' && matrix.os.host != 'windows-latest'
         run: |
           apt-get update
-          apt-get install -y libssl-dev pkg-config
+          apt-get install -y libssl-dev pkg-config curl
 
       - name: Install prerequisites
         if: matrix.os.container == 'alpine:3.16'
