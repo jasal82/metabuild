@@ -32,6 +32,18 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.toolchain }}
           override: true
+      
+      - name: Install build requirements
+        if: matrix.os.container != 'rust:alpine3.16' && matrix.os.host != 'windows-latest'
+        run: |
+          apt-get update
+          apt-get install -y libssl-dev pkg-config
+      
+      - name: Install build requirements
+        if: matrix.os.container == 'rust:alpine3.16'
+        run: |
+          apk update
+          apk add openssl-dev pkgconfig
 
       - name: Build
         uses: actions-rs/cargo@v1
