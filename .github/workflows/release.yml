@@ -14,14 +14,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - container: debian:buster-slim
+          - container: rust:slim-buster
             asset_name: mb-${{ github.ref_name }}-linux-x86_64-debian-buster
-          - container: debian:bullseye-slim
+          - container: rust:slim-bullseye
             asset_name: mb-${{ github.ref_name }}-linux-x86_64-debian-bullseye
-          - container: ubuntu:20.04
-            asset_name: mb-${{ github.ref_name }}-linux-x86_64-ubuntu-20.04
-          - container: ubuntu:22.04
-            asset_name: mb-${{ github.ref_name }}-linux-x86_64-ubuntu-22.04
+          - container: rust:alpine3.16
+            asset_name: mb-${{ github.ref_name }}-linux-x86_64-alpine-3.16
     
     container:
       image: ${{ matrix.container }}
