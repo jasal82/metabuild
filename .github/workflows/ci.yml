@@ -16,9 +16,9 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - { name: Linux-Debian-buster, host: ubuntu-latest, container: rust:buster-slim }
-          - { name: Linux-Debian-bullseye, host: ubuntu-latest, container: rust:bullseye-slim }
-          - { name: Linux-Alpine-3.16, host: ubuntu-latest, container: rust:alpine3.16 }
+          - { name: Linux-Debian-buster, host: ubuntu-latest, container: "rust:buster-slim" }
+          - { name: Linux-Debian-bullseye, host: ubuntu-latest, container: "rust:bullseye-slim" }
+          - { name: Linux-Alpine-3.16, host: ubuntu-latest, container: "rust:alpine3.16" }
           - { name: Windows, host: windows-latest, container: null }
         toolchain: [nightly, stable]
 
