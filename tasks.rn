@@ -1,0 +1,6 @@
+pub fn main() {
+    println("Hello world!");
+    sys::write_colored("blue", "bold", "Hello world!");
+    let t = toml::from_file("Cargo.toml");
+    println(t.package.name);
+}

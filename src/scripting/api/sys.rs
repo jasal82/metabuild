@@ -1,38 +1,36 @@
 use colored::Colorize;
-use rhai::{Engine, Dynamic, Map, Module};
-use super::RhaiResult;
+use rune::{ContextError, Module};
+use rune::runtime::Object;
 
-pub fn is_windows() -> RhaiResult<bool> {
-    Ok(cfg!(target_os = "windows"))
+pub fn is_windows() -> bool {
+    cfg!(target_os = "windows")
 }
 
-pub fn is_linux() -> RhaiResult<bool> {
-    Ok(cfg!(target_os = "linux"))
+pub fn is_linux() -> bool {
+    cfg!(target_os = "linux")
 }
 
-pub fn args() -> RhaiResult<rhai::Array> {
-    Ok(std::env::args().map(|i| Dynamic::from(i)).collect())
+pub fn args() -> Vec<String> {
+    std::env::args().map(|s| s.into()).collect()
 }
 
-pub fn env() -> RhaiResult<Map> {
-    let mut map = Map::new();
+pub fn env() -> Object {
+    let mut map = Object::new();
     std::env::vars().for_each(|(k, v)| {
         map.insert(k.into(), v.into());
     });
-    Ok(map)
+    map
 }
 
-pub fn write(s: &str) -> RhaiResult<()> {
+pub fn write(s: &str) {
     print!("{}", s);
-    Ok(())
 }
 
-pub fn writeln(s: &str) -> RhaiResult<()> {
+pub fn writeln(s: &str) {
     println!("{}", s);
-    Ok(())
 }
 
-pub fn write_colored(color: &str, style: &str, s: &str) -> RhaiResult<()> {
+pub fn write_colored(color: &str, style: &str, s: &str) {
     let colored = match style {
         "bold" => s.bold(),
         "dimmed" => s.dimmed(),
@@ -45,10 +43,9 @@ pub fn write_colored(color: &str, style: &str, s: &str) -> RhaiResult<()> {
         _ => s.normal(),
     }.color(color);
     print!("{}", colored);
-    Ok(())
 }
 
-pub fn writeln_colored(color: &str, style: &str, s: &str) -> RhaiResult<()> {
+pub fn writeln_colored(color: &str, style: &str, s: &str) {
     let colored = match style {
         "bold" => s.bold(),
         "dimmed" => s.dimmed(),
@@ -61,18 +58,17 @@ pub fn writeln_colored(color: &str, style: &str, s: &str) -> RhaiResult<()> {
         _ => s.normal(),
     }.color(color);
     println!("{}", colored);
-    Ok(())
 }
 
-pub fn register(engine: &mut Engine) {
-    let mut module = Module::new();
-    module.set_native_fn("is_windows", is_windows);
-    module.set_native_fn("is_linux", is_linux);
-    module.set_native_fn("args", args);
-    module.set_native_fn("env", env);
-    module.set_native_fn("write", write);
-    module.set_native_fn("writeln", writeln);
-    module.set_native_fn("write_colored", write_colored);
-    module.set_native_fn("writeln_colored", writeln_colored);
-    engine.register_static_module("sys", module.into());
+pub fn module() -> Result<Module, ContextError> {
+    let mut module = Module::with_crate("sys");
+    module.function(["is_windows"], is_windows)?;
+    module.function(["is_linux"], is_linux)?;
+    module.function(["args"], args)?;
+    module.function(["env"], env)?;
+    module.function(["write"], write)?;
+    module.function(["writeln"], writeln)?;
+    module.function(["write_colored"], write_colored)?;
+    module.function(["writeln_colored"], writeln_colored)?;
+    Ok(module)
 }

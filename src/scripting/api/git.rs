@@ -1,12 +1,11 @@
-use rhai::{Engine, Module};
-use super::RhaiResult;
+use rune::{ContextError, Module};
 
-pub fn current_branch() -> RhaiResult<String> {
-    Ok(git2::Repository::open_from_env().unwrap().head().unwrap().name().unwrap().to_string())
+pub fn current_branch() -> rune::Result<String> {
+    Ok(git2::Repository::open_from_env()?.head()?.name().unwrap_or("unknown").to_string())
 }
 
-pub fn register(engine: &mut Engine) {
-    let mut module = Module::new();
-    module.set_native_fn("current_branch", current_branch);
-    engine.register_static_module("git", module.into());
+pub fn module() -> Result<Module, ContextError> {
+    let mut module = Module::with_crate("git");
+    module.function(["current_branch"], current_branch)?;
+    Ok(module)
 }

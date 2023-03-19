@@ -1,34 +1,33 @@
 use flate2::{read::GzDecoder, write::GzEncoder};
-use rhai::{Engine, Module};
+use rune::{ContextError, Module};
 use std::fs::File;
 use std::path::Path;
-use super::RhaiResult;
 use tar::Archive;
 
-pub fn extract(file: &str, dst: &str) -> RhaiResult<()> {
-    let tar_gz = File::open(file).unwrap();
+pub fn extract(file: &str, dst: &str) -> std::io::Result<()> {
+    let tar_gz = File::open(file)?;
     let tar = GzDecoder::new(tar_gz);
     let mut archive = Archive::new(tar);
-    archive.unpack(dst).unwrap();
+    archive.unpack(dst)?;
     Ok(())
 }
 
-pub fn create(file: &str, dir: &str) -> RhaiResult<()> {
-    let tar_gz = File::create(file).unwrap();
+pub fn create(file: &str, dir: &str) -> std::io::Result<()> {
+    let tar_gz = File::create(file)?;
     let enc = GzEncoder::new(tar_gz, flate2::Compression::default());
     let mut tar = tar::Builder::new(enc);
     let path = Path::new(dir);
     if path.is_dir() {
-        tar.append_dir_all("", path).unwrap();
+        tar.append_dir_all("", path)?;
     }
     Ok(())
 }
 
-pub fn register(engine: &mut Engine) {
-    let mut module = Module::new();
-    module.set_native_fn("extract", extract);
-    module.set_native_fn("create", create);
-    engine.register_static_module("arch", module.into());
+pub fn module() -> Result<Module, ContextError> {
+    let mut module = Module::with_crate("arch");
+    module.function(["extract"], extract)?;
+    module.function(["create"], create)?;
+    Ok(module)
 }
 
 #[cfg(test)]

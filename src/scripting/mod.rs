@@ -1,10 +1,11 @@
-use rhai::{Dynamic, Engine, Scope};
-use rhai::module_resolvers::FileModuleResolver;
+use rune::termcolor::{ColorChoice, StandardStream};
+use rune::{Context, Diagnostics, FromValue, Source, Sources, Vm};
 use std::path::Path;
+use std::sync::Arc;
 
 mod api;
 
-fn build_engine() -> Engine {
+/*fn build_engine() -> Engine {
     let mut engine = Engine::new();
     api::arch::register(&mut engine);
     api::cmd::register(&mut engine);
@@ -30,13 +31,44 @@ fn get_available_tasks(ast: &rhai::AST) -> Vec<String> {
         tasks.push(f.name[5..].to_string());
     });
     tasks
-}
+}*/
 
-pub fn run_tasks(file: &Path, tasks: &Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
-    let engine = build_engine();
-    let ast = engine.compile_file(file.to_path_buf()).expect("Failed to compile file");
+pub fn run_tasks(script_file: &Path, tasks: &Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
+    let mut context = Context::with_default_modules()?;
+    context.install(&rune_modules::http::module(true)?)?;
+    context.install(&rune_modules::process::module(true)?)?;
+    context.install(&api::arch::module()?)?;
+    context.install(&api::fs::module()?)?;
+    context.install(&api::git::module()?)?;
+    context.install(&api::net::module()?)?;
+    context.install(&api::re::module()?)?;
+    context.install(&api::str::module()?)?;
+    context.install(&api::sys::module()?)?;
+    context.install(&api::toml::module()?)?;
+    context.install(&api::yaml::module()?)?;
+
+    let mut sources = Sources::new();
+    sources.insert(Source::from_path(script_file)?);
+
+    let mut diagnostics = Diagnostics::new();
+
+    let result = rune::prepare(&mut sources)
+        .with_context(&context)
+        .with_diagnostics(&mut diagnostics)
+        .build();
+
+    if !diagnostics.is_empty() {
+        let mut writer = StandardStream::stderr(ColorChoice::Always);
+        diagnostics.emit(&mut writer, &sources)?;
+    }
+
+    let unit = result?;
+
+    let mut vm = Vm::new(Arc::new(context.runtime()), Arc::new(unit));
+    let output = vm.execute(&["main"], ())?.complete()?;
+    //let output = i64::from_value(output)?;
     
-    if tasks.len() == 0 {
+    /*if tasks.len() == 0 {
         return Err("No tasks specified".into());
     }
     
@@ -60,7 +92,7 @@ pub fn run_tasks(file: &Path, tasks: &Vec<String>) -> Result<(), Box<dyn std::er
         if result.is_bool() {
             exit_code = !result.as_bool().unwrap_or(false) as u8;
         }
-    }
+    }*/
 
     Ok(())
 }
