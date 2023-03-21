@@ -36,7 +36,7 @@ fn to_scope(global: bool) -> commands::config::ConfigScope {
     }
 }
 
-pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+pub fn main() -> Result<(), anyhow::Error> {
     print_header();
 
     let cli = Cli::parse();

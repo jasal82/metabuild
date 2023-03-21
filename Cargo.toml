@@ -16,11 +16,12 @@ figment = { version = "0.10", features = ["toml", "env", "test"] }
 flate2 = "1"
 git2 = "0.16.1"
 glob = "0.3"
+once_cell = "1"
 path-slash = "0.2.1"
 regex = "1"
 reqwest = { version = "0.11", features = ["blocking", "rustls-tls-native-roots"] }
 rune = "0.12.1"
-rune-modules = { version = "0.12.1", features = ["http", "process"] }
+rune-modules = { version = "0.12.1", features = ["http", "io", "process"] }
 self_update = "0.36"
 serde = { version = "1", features = ["derive"] }
 tar = "0.4"

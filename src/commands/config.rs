@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use figment::{providers::{Env, Format, Serialized, Toml}, Figment};
 use serde::{Deserialize, Serialize};
 
@@ -47,7 +48,7 @@ impl Config {
         Config { figment, merged, global, local }
     }
 
-    fn write_and_update(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    fn write_and_update(&mut self) -> Result<(), anyhow::Error> {
         std::fs::create_dir_all(dirs::home_dir().unwrap().join(".mb"))?;
         std::fs::write(
             dirs::home_dir().unwrap().join(".mb/config.toml"),
@@ -59,7 +60,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn set(&mut self, key: &str, value: &str, scope: ConfigScope) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn set(&mut self, key: &str, value: &str, scope: ConfigScope) -> Result<(), anyhow::Error> {
         if key == "gitlab_token" {
             match scope {
                 ConfigScope::Global => {
@@ -72,20 +73,20 @@ impl Config {
                 }
             }
         } else {
-            Err("Invalid key".into())
+            Err(anyhow!("Invalid key"))
         }
     }
 
-    pub fn get(&mut self, key: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn get(&mut self, key: &str) -> Result<(), anyhow::Error> {
         if key == "gitlab_token" {
             println!("{}", self.merged.gitlab_token.as_ref().unwrap());
             Ok(())
         } else {
-            Err("Invalid key".into())
+            Err(anyhow!("Invalid key"))
         }
     }
 
-    pub fn list(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn list(&mut self) -> Result<(), anyhow::Error> {
         if self.merged.gitlab_token.is_some() {
             let name = self.figment.find_value("gitlab_token").unwrap();
             println!("gitlab_token: {} ({})", self.merged.gitlab_token.as_ref().unwrap(), self.figment.get_metadata(name.tag()).unwrap().source.as_ref().unwrap());

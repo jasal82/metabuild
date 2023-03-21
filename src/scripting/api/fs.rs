@@ -67,7 +67,7 @@ pub fn write_file(path: &str, content: &str) -> std::io::Result<()> {
 }
 
 pub fn module() -> Result<Module, ContextError> {
-    let mut module = Module::with_crate("arch");
+    let mut module = Module::with_crate("fs");
     module.function(["glob"], glob)?;
     module.function(["exists"], exists)?;
     module.function(["is_file"], is_file)?;

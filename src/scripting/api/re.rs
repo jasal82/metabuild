@@ -56,13 +56,7 @@ impl RegexRune {
 
     pub fn captures(&self, text: &str) -> Option<CapturesRune> {
         if let Some(c) = self.inner.captures(text) {
-            Some(CapturesRune {
-                groups: c.iter().map(|m| m.map(|m| MatchRune {
-                    start: m.start(),
-                    end: m.end(),
-                    text: m.as_str().to_string(),
-                })).collect(),
-            })
+            Some(CapturesRune::new(&c))
         } else {
             None
         }
@@ -71,7 +65,7 @@ impl RegexRune {
     pub fn captures_iter(&self, text: &str) -> Vec<Option<CapturesRune>> {
         let mut result = Vec::new();
         for caps in self.inner.captures_iter(text) {
-            
+            result.push(Some(CapturesRune::new(&caps)));
         }
         result
     }
@@ -121,7 +115,7 @@ pub fn module() -> Result<Module, ContextError> {
     module.ty::<MatchRune>()?;
     module.ty::<CapturesRune>()?;
 
-    module.function(["regex", "new"], RegexRune::new)?;
+    module.function(["Regex", "new"], RegexRune::new)?;
     module.inst_fn("is_match", RegexRune::is_match)?;
     module.inst_fn("replace_all", RegexRune::replace_all)?;
     module.inst_fn("find", RegexRune::find)?;

@@ -1,6 +1,88 @@
+use arch::*;
+use cmd::Command;
+use regex::Regex;
+mod testmod;
+
+struct Global {
+    tasks
+}
+
+impl Global {
+    fn register(self, name, task) {
+        self.tasks["name"] = task;
+    }
+}
+
+fn paint(s) {
+    let colored = Regex::new("<(\\w+)(?:,(\\w+))?\\|(.*?)>");
+    let captures = colored.captures_iter(s);
+    let last = 0;
+    for cap in captures {
+        if let Some(c) = cap {
+            let full_start = c.get(0).unwrap().start();
+            let full_end = c.get(0).unwrap().end();
+            let color = c.get(1).unwrap().as_str();
+            let style = None;
+            let content = c.get(3).unwrap().as_str();
+            if c.get(2).is_some() {
+                style = Some(c.get(2).unwrap().as_str());
+            }
+            if full_start > last {
+                let text = s[last..full_start];
+                sys::write(text);
+            }
+            if style.is_some() {
+                sys::write_colored(color, style.unwrap(), content);
+            } else {
+                sys::write_colored(color, "normal", content);
+            }
+            last = full_end;
+        }
+    }
+    if last != s.len() {
+        let text = s[last..s.len()];
+        sys::write(text);
+    }
+}
+
+pub fn mytask() {
+    print("Hello from mytask!");
+}
+
+fn test_arch() {
+    arch::create("test.tar.gz", "tests");
+    arch::extract("test.tar.gz", "dummy");
+    fs::delete("dummy");
+}
+
+fn run(cmd, args) {
+    let command = Command::new(cmd);
+    command.args(args);
+    command.shell();
+    command.output()
+}
+
 pub fn main() {
-    println("Hello world!");
-    sys::write_colored("blue", "bold", "Hello world!");
-    let t = toml::from_file("Cargo.toml");
-    println(t.package.name);
+    let p = run("echo", ["test", "bla"]);
+    println(p);
+    paint("<red,underline|das> ist ein <blue,bold|test>\n");
+    tasks::register("blubb", mytask);
+    let global = Global {
+        tasks: #{}
+    };
+    global.register("blubb", mytask);
+    testmod::test();
+}
+
+fn build() {
+    println!("-- build");
+}
+
+fn test() {
+    println!("-- test");
+}
+
+pub fn metabuild() {
+    tasks::register("build", build);
+    tasks::register("test", test);
 }
