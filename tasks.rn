@@ -63,6 +63,8 @@ fn run(cmd, args) {
 }
 
 pub fn main() {
+    let abs = fs::absolute("tasks.rn");
+    println(abs.unwrap());
     let p = run("echo", ["test", "bla"]);
     println(p);
     paint("<red,underline|das> ist ein <blue,bold|test>\n");

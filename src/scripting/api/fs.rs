@@ -1,5 +1,6 @@
 use rune::{ContextError, Module};
 use rune::runtime::VmError;
+use path_absolutize::*;
 use std::path::Path;
 
 fn copy_dir_internal(src: &str, dst: &str) -> std::io::Result<()> {
@@ -66,6 +67,10 @@ pub fn write_file(path: &str, content: &str) -> std::io::Result<()> {
     std::fs::write(path, content)
 }
 
+pub fn absolute(path: &str) -> std::io::Result<String> {
+    Path::new(path).absolutize().map(|p| p.to_str().unwrap().to_string())
+}
+
 pub fn module() -> Result<Module, ContextError> {
     let mut module = Module::with_crate("fs");
     module.function(["glob"], glob)?;
@@ -78,6 +83,7 @@ pub fn module() -> Result<Module, ContextError> {
     module.function(["copy_dir"], copy_dir)?;
     module.function(["read_file"], read_file)?;
     module.function(["write_file"], write_file)?;
+    module.function(["absolute"], absolute)?;
     Ok(module)
 }
 
