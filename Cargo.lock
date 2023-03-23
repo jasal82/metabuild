@@ -1706,7 +1706,6 @@ checksum = "4910f065e0918bc448ff915ca122120f427699398f6673bd45af7e161d9f4445"
 dependencies = [
  "reqwest",
  "rune",
- "tokio",
 ]
 
 [[package]]
@@ -1922,15 +1921,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "signal-hook-registry"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8229b473baa5980ac72ef434c4415e70c4b5e71b423043adb4ba059f89c99a1"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "siphasher"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2116,7 +2106,6 @@ dependencies = [
  "mio",
  "num_cpus",
  "pin-project-lite",
- "signal-hook-registry",
  "socket2",
  "windows-sys 0.42.0",
 ]

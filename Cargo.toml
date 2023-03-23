@@ -22,7 +22,7 @@ path-slash = "0.2.1"
 regex = "1"
 reqwest = { version = "0.11", features = ["blocking", "rustls-tls-native-roots"] }
 rune = "0.12.1"
-rune-modules = { version = "0.12.1", features = ["http", "io", "process"] }
+rune-modules = { version = "0.12.1", features = ["http", "io"] }
 self_update = "0.36"
 serde = { version = "1", features = ["derive"] }
 tar = "0.4"
