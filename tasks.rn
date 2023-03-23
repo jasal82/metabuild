@@ -1,6 +1,7 @@
 use arch::*;
 use cmd::Command;
 use regex::Regex;
+
 mod testmod;
 
 struct Global {
@@ -62,9 +63,93 @@ fn run(cmd, args) {
     command.output()
 }
 
+fn is_in_path(program) {
+    let paths = ();
+    if sys::is_windows() {
+        paths = sys::env()["Path"].split(";");
+        program = program + ".exe";
+    } else {
+        paths = sys::env()["PATH"].split(":");
+    }
+    
+    for p in paths {
+        if fs::is_file(join(p, program)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+fn join(p1, p2) {
+    let sep = "/";
+    if sys::is_windows() {
+        sep = "\\";
+    }
+    if p1.ends_with(sep) {
+        return p1 + p2;
+    } else {
+        return p1 + sep + p2;
+    }
+}
+
+fn path_variable() {
+    if sys::is_windows() {
+        "Path"
+    } else {
+        "PATH"
+    }
+}
+
+struct Venv {
+    path
+}
+
+impl Venv {
+    fn run(self, command) {
+        let c = Command::new(command[0]);
+        c.shell();
+        c.args(command.iter().skip(1).collect::<Vec>());
+        c.env_remove("PYTHONHOME");
+        let entry_separator = ":";
+        let bin_dir = "bin";
+        if sys::is_windows() {
+            entry_separator = ";";
+            bin_dir = "Scripts";
+        }
+        c.env(path_variable(), join(fs::absolute(self.path)?, bin_dir) + entry_separator + sys::env()[path_variable()]);
+        c.execute();
+    }
+}
+
+fn init_venv(path) {
+    let python = "python3";
+    
+    if !is_in_path("python3") {
+        python = "python";
+    }
+    
+    if !is_in_path(python) {
+        print("Python not found in PATH");
+        return;
+    }
+
+    if !fs::is_dir(path) {
+        run("python", ["-m", "venv", path]);
+    } else {
+        println(`venv already exists at ${path}`);
+    }
+
+    Venv {
+        path: path
+    }
+}
+
 pub fn main() {
+    let venv = init_venv(".venv");
+    venv.run(["python"]);
     let abs = fs::absolute("tasks.rn");
-    println(abs.unwrap());
+    println(abs?);
     let p = run("echo", ["test", "bla"]);
     println(p);
     paint("<red,underline|das> ist ein <blue,bold|test>\n");
