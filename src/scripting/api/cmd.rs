@@ -1,5 +1,5 @@
-use rhai::Engine;
-use super::RhaiResult;
+use rune::{Any, ContextError, Module};
+use rune::runtime::Object;
 use std::process::{Command, Stdio};
 
 #[cfg(target_os = "windows")]
@@ -46,7 +46,14 @@ mod internal {
     }
 }
 
-#[derive(Clone)]
+enum PipeRouting {
+    Piped,
+    Inherit,
+    Null,
+    Unspecified,
+}
+
+#[derive(Any)]
 struct Cmd {
     args: Vec<String>,
     envs: Vec<(String, String)>,
@@ -54,6 +61,8 @@ struct Cmd {
     env_clear: bool,
     current_dir: Option<String>,
     shell: bool,
+    stdout: PipeRouting,
+    stderr: PipeRouting,
 }
 
 impl Cmd {
@@ -65,35 +74,19 @@ impl Cmd {
             env_clear: false,
             current_dir: None,
             shell: false,
+            stdout: PipeRouting::Unspecified,
+            stderr: PipeRouting::Unspecified,
         }
-    }
-
-    pub fn from_array(args: rhai::Array) -> RhaiResult<Self> {
-        let mut str_args : Vec<String> = Vec::new();
-        for arg in args {
-            str_args.push(arg.into_string().unwrap());
-        }
-
-        Ok(Self {
-            args: str_args,
-            envs: vec![],
-            env_remove: vec![],
-            env_clear: false,
-            current_dir: None,
-            shell: false,
-        })
     }
 
     pub fn arg(&mut self, arg: &str) {
         self.args.push(arg.into());
     }
 
-    pub fn args(&mut self, args: rhai::Array) -> RhaiResult<()> {
+    pub fn args(&mut self, args: Vec<String>) {
         for arg in args {
-            self.args.push(arg.into_string().unwrap());
+            self.args.push(arg);
         }
-
-        Ok(())
     }
 
     pub fn current_dir(&mut self, dir: &str) {
@@ -104,12 +97,10 @@ impl Cmd {
         self.envs.push((key.into(), value.into()));
     }
 
-    pub fn envs(&mut self, envs: rhai::Map) -> RhaiResult<()> {
+    pub fn envs(&mut self, envs: Object) {
         for (key, value) in envs {
-            self.envs.push((key.to_string(), value.into_string().unwrap()));
+            self.envs.push((key.to_string(), value.into_string().unwrap().take().unwrap()));
         }
-
-        Ok(())
     }
 
     pub fn env_clear(&mut self) {
@@ -124,7 +115,27 @@ impl Cmd {
         self.shell = true;
     }
 
-    fn build_cmd(&mut self) -> RhaiResult<Command> {
+    pub fn stdout(&mut self, stdout: &str) {
+        match stdout {
+            "pipe" => self.stdout = PipeRouting::Piped,
+            "inherit" => self.stdout = PipeRouting::Inherit,
+            "null" => self.stdout = PipeRouting::Null,
+            "unspecified" => self.stdout = PipeRouting::Unspecified,
+            _ => panic!("Invalid stdout routing: {}", stdout),
+        }
+    }
+
+    pub fn stderr(&mut self, stderr: &str) {
+        match stderr {
+            "pipe" => self.stderr = PipeRouting::Piped,
+            "inherit" => self.stderr = PipeRouting::Inherit,
+            "null" => self.stderr = PipeRouting::Null,
+            "unspecified" => self.stderr = PipeRouting::Unspecified,
+            _ => panic!("Invalid stderr routing: {}", stderr),
+        }
+    }
+
+    fn build_cmd(&mut self) -> Command {
         let mut cmd = match self.shell {
             true => {
                 let mut cmd = internal::new_shell_command();
@@ -156,36 +167,54 @@ impl Cmd {
             cmd.current_dir(absolute_dir);
         }
 
-        Ok(cmd)
+        match self.stdout {
+            PipeRouting::Piped => { cmd.stdout(Stdio::piped()); },
+            PipeRouting::Inherit => { cmd.stdout(Stdio::inherit()); },
+            PipeRouting::Null => { cmd.stdout(Stdio::null()); },
+            PipeRouting::Unspecified => {},
+        };
+
+        match self.stderr {
+            PipeRouting::Piped => { cmd.stderr(Stdio::piped()); },
+            PipeRouting::Inherit => { cmd.stderr(Stdio::inherit()); },
+            PipeRouting::Null => { cmd.stderr(Stdio::null()); },
+            PipeRouting::Unspecified => {},
+        };
+
+        cmd
     }
 
-    pub fn execute(&mut self) -> RhaiResult<u8> {
-        let mut cmd = self.build_cmd()?;
-        Ok(cmd.status().expect(&format!("Failed to execute command: {:?}", self.args)).code().unwrap_or(1) as u8)
+    pub fn execute(&mut self) -> u8 {
+        let mut cmd = self.build_cmd();
+        cmd.status().expect(&format!("Failed to execute command: {:?}", self.args)).code().unwrap_or(1) as u8
     }
 
-    pub fn output(&mut self) -> RhaiResult<String> {
-        let mut cmd = self.build_cmd()?;
-        cmd.stdin(Stdio::inherit());
-        cmd.stderr(Stdio::inherit());
+    pub fn output(&mut self) -> String {
+        let mut cmd = self.build_cmd();
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
         let output = cmd.output().expect(&format!("Failed to execute command: {:?}", self.args));
-        Ok(String::from_utf8(output.stdout).unwrap())
+        String::from_utf8(output.stdout).unwrap()
     }
 }
 
-pub fn register(engine: &mut Engine) {
-    engine.register_fn("cmd", Cmd::new);
-    engine.register_fn("cmd", Cmd::from_array);
-    engine.register_fn("arg", Cmd::arg);
-    engine.register_fn("args", Cmd::args);
-    engine.register_fn("current_dir", Cmd::current_dir);
-    engine.register_fn("env", Cmd::env);
-    engine.register_fn("envs", Cmd::envs);
-    engine.register_fn("env_clear", Cmd::env_clear);
-    engine.register_fn("env_remove", Cmd::env_remove);
-    engine.register_fn("shell", Cmd::shell);
-    engine.register_fn("execute", Cmd::execute);
-    engine.register_fn("output", Cmd::output);
+pub fn module() -> Result<Module, ContextError> {
+    let mut module = Module::with_crate("cmd");
+    module.ty::<Cmd>()?;
+    module.function(["Command", "new"], Cmd::new)?;
+    module.inst_fn("arg", Cmd::arg)?;
+    module.inst_fn("args", Cmd::args)?;
+    module.inst_fn("current_dir", Cmd::current_dir)?;
+    module.inst_fn("env", Cmd::env)?;
+    module.inst_fn("envs", Cmd::envs)?;
+    module.inst_fn("env_clear", Cmd::env_clear)?;
+    module.inst_fn("env_remove", Cmd::env_remove)?;
+    module.inst_fn("shell", Cmd::shell)?;
+    module.inst_fn("stdout", Cmd::stdout)?;
+    module.inst_fn("stderr", Cmd::stderr)?;
+    module.inst_fn("execute", Cmd::execute)?;
+    module.inst_fn("output", Cmd::output)?;
+    Ok(module)
 }
 
 #[cfg(test)]
@@ -198,8 +227,8 @@ mod tests {
         cmd.arg("Hello World");
         cmd.shell();
         #[cfg(target_os = "windows")]
-        assert_eq!(cmd.output().unwrap(), "Hello World\r\n");
+        assert_eq!(cmd.output(), "Hello World\r\n");
         #[cfg(target_os = "linux")]
-        assert_eq!(cmd.output().unwrap(), "Hello World\n");
+        assert_eq!(cmd.output(), "Hello World\n");
     }
 }

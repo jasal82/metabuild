@@ -1,66 +1,87 @@
-use rhai::{Dynamic, Engine, Scope};
-use rhai::module_resolvers::FileModuleResolver;
+use rune::termcolor::{ColorChoice, StandardStream};
+use rune::ast::Span;
+use rune::{Context, compile::{CompileError, FileSourceLoader, Item, SourceLoader}, Diagnostics, Source, Sources, runtime::Value, Vm};
 use std::path::Path;
+use std::sync::Arc;
 
 mod api;
 
-fn build_engine() -> Engine {
-    let mut engine = Engine::new();
-    api::arch::register(&mut engine);
-    api::cmd::register(&mut engine);
-    api::fs::register(&mut engine);
-    api::git::register(&mut engine);
-    api::net::register(&mut engine);
-    api::re::register(&mut engine);
-    api::str::register(&mut engine);
-    api::sys::register(&mut engine);
-    api::toml::register(&mut engine);
-    api::yaml::register(&mut engine);
-    engine.set_module_resolver(FileModuleResolver::new_with_path(".mb/modules"));
-    engine
+#[derive(Default)]
+pub struct CustomSourceLoader {
+    file_loader: FileSourceLoader
 }
 
-fn get_task_fn_name(task_name: &str) -> String {
-    format!("task_{}", task_name)
-}
-
-fn get_available_tasks(ast: &rhai::AST) -> Vec<String> {
-    let mut tasks : Vec<String> = Vec::new();
-    ast.iter_functions().filter(|f| f.name.starts_with("task_")).for_each(|f| {
-        tasks.push(f.name[5..].to_string());
-    });
-    tasks
-}
-
-pub fn run_tasks(file: &Path, tasks: &Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
-    let engine = build_engine();
-    let ast = engine.compile_file(file.to_path_buf()).expect("Failed to compile file");
-    
-    if tasks.len() == 0 {
-        return Err("No tasks specified".into());
-    }
-    
-    let available_tasks = get_available_tasks(&ast);
-    let mut unknown_tasks = Vec::new();
-    tasks.iter().for_each(|task| {
-        if !available_tasks.contains(&task) {
-            unknown_tasks.push(task);
-        }
-    });
-
-    if unknown_tasks.len() > 0 {
-        return Err(format!("Unknown tasks: {:?}", unknown_tasks).into());
-    }
-
-    let mut exit_code : u8 = 0;
-    for task in tasks {
-        let mut scope = Scope::new();
-        let result = engine.call_fn::<Dynamic>(&mut scope, &ast, get_task_fn_name(&task), ()).expect("Failed to call task");
-
-        if result.is_bool() {
-            exit_code = !result.as_bool().unwrap_or(false) as u8;
+impl CustomSourceLoader {
+    pub fn new() -> Self {
+        Self {
+            file_loader: FileSourceLoader::new()
         }
     }
+}
+
+impl SourceLoader for CustomSourceLoader {
+    fn load(&mut self, root: &Path, item: &Item, span: Span) -> Result<Source, CompileError> {
+        // Try the default loader first. If that fails, try to use the module
+        // path as root instead. We have to add a dummy file name to the path
+        // because the FileSourceLoader pops the last path component off.
+        match self.file_loader.load(root, item, span) {
+            Ok(source) => Ok(source),
+            Err(_) => {
+                let module_path = Path::new(".mb/modules/dummy");
+                self.file_loader.load(module_path, item, span)
+            }
+        }
+    }
+}
+
+pub fn run_tasks(script_file: &Path, tasks: &Vec<String>) -> Result<(), anyhow::Error> {
+    let mut context = Context::with_default_modules()?;
+    context.install(&rune_modules::io::module(true)?)?;
+    context.install(&rune_modules::http::module(true)?)?;
+    context.install(&api::arch::module()?)?;
+    context.install(&api::cmd::module()?)?;
+    context.install(&api::fs::module()?)?;
+    context.install(&api::git::module()?)?;
+    context.install(&api::net::module()?)?;
+    context.install(&api::re::module()?)?;
+    context.install(&api::str::module()?)?;
+    context.install(&api::sys::module()?)?;
+    context.install(&api::metabuild::module()?)?;
+    context.install(&api::toml::module()?)?;
+    context.install(&api::yaml::module()?)?;
+
+    let mut sources = Sources::new();
+    sources.insert(Source::from_path(script_file)?);
+
+    let mut diagnostics = Diagnostics::new();
+    let mut source_loader = CustomSourceLoader::new();
+
+    let result = rune::prepare(&mut sources)
+        .with_context(&context)
+        .with_diagnostics(&mut diagnostics)
+        .with_source_loader(&mut source_loader)
+        .build();
+
+    if !diagnostics.is_empty() {
+        let mut writer = StandardStream::stderr(ColorChoice::Always);
+        diagnostics.emit(&mut writer, &sources)?;
+    }
+
+    let unit = result?;
+
+    let mut vm = Vm::new(Arc::new(context.runtime()), Arc::new(unit));
+    let mut execution = vm.execute(["main"], (tasks.iter().map(|t| t.to_owned().into()).collect::<Vec<Value>>(),))?;
+    let result = execution.complete();
+    let _errored = match result {
+        Ok(_result) => {
+            None
+        },
+        Err(error) => {
+            let mut writer = StandardStream::stderr(ColorChoice::Always);
+            error.emit(&mut writer, &sources)?;
+            Some(error)
+        }
+    };
 
     Ok(())
 }

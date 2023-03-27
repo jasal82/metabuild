@@ -1,5 +1,5 @@
-use rhai::{Engine, Map, Module};
-use super::RhaiResult;
+use rune::{ContextError, Module};
+use rune::runtime::Object;
 use tera::{Tera, Context};
 
 enum Source {
@@ -7,7 +7,7 @@ enum Source {
     Template(String),
 }
 
-fn template_internal(tpl: Source, context: Map) -> String {
+fn template_internal(tpl: Source, context: Object) -> String {
     let mut tera = Tera::default();
     match tpl {
         Source::File(file) => tera.add_template_file(file, Some("template")).unwrap(),
@@ -15,22 +15,22 @@ fn template_internal(tpl: Source, context: Map) -> String {
     }
     let mut tera_context = Context::new();
     for (k, v) in context {
-        tera_context.insert(k, &v.into_string().unwrap());
+        tera_context.insert(k, v.into_string().unwrap().borrow_ref().unwrap().as_str());
     }
     tera.render("template", &tera_context).unwrap()
 }
 
-pub fn template_file(tpl_file: &str, context: Map) -> RhaiResult<String> {
-    Ok(template_internal(Source::File(tpl_file.to_string()), context))
+pub fn template_file(tpl_file: &str, context: Object) -> String {
+    template_internal(Source::File(tpl_file.to_string()), context)
 }
 
-pub fn template(tpl: &str, context: Map) -> RhaiResult<String> {
-    Ok(template_internal(Source::Template(tpl.to_string()), context))
+pub fn template(tpl: &str, context: Object) -> String {
+    template_internal(Source::Template(tpl.to_string()), context)
 }
 
-pub fn register(engine: &mut Engine) {
-    let mut module = Module::new();
-    module.set_native_fn("template_file", template_file);
-    module.set_native_fn("template", template);
-    engine.register_static_module("str", module.into());
+pub fn module() -> Result<Module, ContextError> {
+    let mut module = Module::with_crate("str");
+    module.function(["template_file"], template_file)?;
+    module.function(["template"], template)?;
+    Ok(module)
 }

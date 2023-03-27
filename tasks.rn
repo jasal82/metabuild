@@ -1,0 +1,33 @@
+use arch::*;
+use metabuild::TaskRunner;
+
+mod python;
+mod core;
+
+use python::Venv;
+
+pub fn mytask() {
+    print("Hello from mytask!");
+}
+
+pub fn main(tasks) {
+    if let Ok(venv) = Venv::new(".venv") {
+        if !venv.exists() {
+            venv.init();
+        }
+        venv.quiet(true);
+        venv.install_requirements("requirements.txt");
+        venv.quiet(false);
+        venv.run(["python"]);
+    }
+    core::paint("<red,underline|das> ist ein <blue,bold|test>\n");
+    let runner = TaskRunner::new();
+    runner.register("build", build);
+    runner.run(tasks);
+    println!("Tasks {}", core::string::join(tasks, "; "));
+    println!("CLI args {}", core::string::join(sys::args(), ","));
+}
+
+fn build() {
+    println!("-- build");
+}

@@ -1,14 +1,13 @@
 use crate::net;
-use rhai::{Engine, Module};
+use rune::{ContextError, Module};
 use std::path::Path;
-use super::RhaiResult;
 
-pub fn get_file(url: &str, file: &str) -> RhaiResult<()> {
-    net::download_file(url, Path::new(file)).map_err(|_| error!("Failed to download file"))
+pub fn get_file(url: &str, file: &str) -> rune::Result<()> {
+    net::download_file(url, Path::new(file))
 }
 
-pub fn register(engine: &mut Engine) {
-    let mut module = Module::new();
-    module.set_native_fn("get_file", get_file);
-    engine.register_static_module("net", module.into());
+pub fn module() -> Result<Module, ContextError> {
+    let mut module = Module::with_crate("net");
+    module.function(["get_file"], get_file)?;
+    Ok(module)
 }

@@ -1,0 +1,76 @@
+use cmd::Command;
+use crate::core;
+
+pub struct Venv {
+    path,
+    interpreter,
+    quiet,
+}
+
+fn find_interpreter() {
+    if core::is_in_path("python3") {
+        Ok("python3")
+    } else if core::is_in_path("python") {
+        Ok("python")
+    } else {
+        Err("No Python interpreter found in PATH")
+    }
+}
+
+impl Venv {
+    pub fn new(path) {
+        match find_interpreter() {
+            Ok(interpreter) => {
+                Ok(Self {
+                    path: path,
+                    interpreter: interpreter,
+                    quiet: false,
+                })
+            },
+            Err(e) => Err(e)
+        }
+    }
+
+    pub fn quiet(self, value) {
+        self.quiet = value;
+    }
+
+    pub fn exists(self) {
+        // Is this enough?
+        fs::is_dir(self.path)
+    }
+
+    pub fn init(self) {
+        core::run(self.interpreter, ["-m", "venv", self.path]);
+    }
+
+    pub fn install_requirements(self, file) {
+        self.run([self.interpreter, "-m", "pip", "install", "-r", file]);
+    }
+
+    pub fn run(self, command) {
+        let c = Command::new(command[0]);
+        c.shell();
+        let args = command.iter().skip(1).collect::<Vec>();
+        c.args(args);
+        //c.args(command[1..]); // needs https://github.com/rune-rs/rune/issues/460
+        c.env_remove("PYTHONHOME");
+        let entry_separator = ":";
+        let bin_dir = "bin";
+        if sys::is_windows() {
+            entry_separator = ";";
+            bin_dir = "Scripts";
+        }
+        c.env(
+            core::path_variable(),
+            core::path::join(fs::absolute(self.path)?, bin_dir) +
+                entry_separator +
+                sys::env()[core::path_variable()]
+        );
+        if self.quiet {
+            c.stdout("null");
+            c.stderr("null");
+        }
+        c.execute();
+    }
+}

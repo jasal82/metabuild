@@ -1,7 +1,7 @@
 use self_update::cargo_crate_version;
 
-pub fn update() -> Result<(), Box<dyn std::error::Error>> {
-    let status = self_update::backends::github::Update::configure()
+pub fn update() -> Result<(), anyhow::Error> {
+    self_update::backends::github::Update::configure()
         .repo_owner("jasal82")
         .repo_name("metabuild")
         .bin_name("mb")

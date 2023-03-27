@@ -1,39 +1,47 @@
-use rhai::{Engine, Dynamic, Module};
-use super::RhaiResult;
+use rune::{ContextError, Module};
+use rune::runtime::{Object, Value, Vec};
 use toml::Table;
 
-fn convert_value_to_dynamic(value: toml::Value) -> Dynamic {
+fn convert_toml_to_rune(value: toml::Value) -> Value {
     match value {
         toml::Value::String(s) => s.into(),
         toml::Value::Integer(i) => i.into(),
         toml::Value::Float(f) => f.into(),
         toml::Value::Boolean(b) => b.into(),
         toml::Value::Datetime(d) => d.to_string().into(),
-        toml::Value::Array(a) => a.into_iter().map(|e| convert_value_to_dynamic(e)).collect::<rhai::Array>().into(),
-        toml::Value::Table(t) => convert_table_to_map(t).into(),
+        toml::Value::Array(a) => convert_array_to_vector(a),
+        toml::Value::Table(t) => convert_table_to_object(t).into(),
     }
 }
 
-fn convert_table_to_map(table: Table) -> rhai::Map {
-    let mut map = rhai::Map::new();
+fn convert_array_to_vector(array: std::vec::Vec<toml::Value>) -> Value {
+    let mut vec = Vec::new();
+    for e in array {
+        vec.push(convert_toml_to_rune(e));
+    }
+    vec.into()
+}
+
+fn convert_table_to_object(table: Table) -> Object {
+    let mut map = Object::new();
     for (k, v) in table {
-        map.insert(k.into(), convert_value_to_dynamic(v));
+        map.insert(k.into(), convert_toml_to_rune(v));
     }
     map
 }
 
-pub fn from_file(file: &str) -> RhaiResult<rhai::Map> {
+pub fn from_file(file: &str) -> Object {
     let content = std::fs::read_to_string(file).unwrap();
-    Ok(from_string(&content).unwrap())
+    from_string(&content)
 }
 
-pub fn from_string(content: &str) -> RhaiResult<rhai::Map> {
-    Ok(convert_table_to_map(content.parse::<Table>().unwrap()))
+pub fn from_string(content: &str) -> Object {
+    convert_table_to_object(content.parse::<Table>().unwrap())
 }
 
-pub fn register(engine: &mut Engine) {
-    let mut module = Module::new();
-    module.set_native_fn("from_file", from_file);
-    module.set_native_fn("from_string", from_string);
-    engine.register_static_module("toml", module.into());
+pub fn module() -> Result<Module, ContextError> {
+    let mut module = Module::with_crate("toml");
+    module.function(["from_file"], from_file)?;
+    module.function(["from_string"], from_string)?;
+    Ok(module)
 }
