@@ -50,6 +50,7 @@ enum PipeRouting {
     Piped,
     Inherit,
     Null,
+    Unspecified,
 }
 
 #[derive(Any)]
@@ -73,8 +74,8 @@ impl Cmd {
             env_clear: false,
             current_dir: None,
             shell: false,
-            stdout: PipeRouting::Inherit,
-            stderr: PipeRouting::Inherit,
+            stdout: PipeRouting::Unspecified,
+            stderr: PipeRouting::Unspecified,
         }
     }
 
@@ -119,6 +120,7 @@ impl Cmd {
             "pipe" => self.stdout = PipeRouting::Piped,
             "inherit" => self.stdout = PipeRouting::Inherit,
             "null" => self.stdout = PipeRouting::Null,
+            "unspecified" => self.stdout = PipeRouting::Unspecified,
             _ => panic!("Invalid stdout routing: {}", stdout),
         }
     }
@@ -128,6 +130,7 @@ impl Cmd {
             "pipe" => self.stderr = PipeRouting::Piped,
             "inherit" => self.stderr = PipeRouting::Inherit,
             "null" => self.stderr = PipeRouting::Null,
+            "unspecified" => self.stderr = PipeRouting::Unspecified,
             _ => panic!("Invalid stderr routing: {}", stderr),
         }
     }
@@ -165,15 +168,17 @@ impl Cmd {
         }
 
         match self.stdout {
-            PipeRouting::Piped => cmd.stdout(Stdio::piped()),
-            PipeRouting::Inherit => cmd.stdout(Stdio::inherit()),
-            PipeRouting::Null => cmd.stdout(Stdio::null()),
+            PipeRouting::Piped => { cmd.stdout(Stdio::piped()); },
+            PipeRouting::Inherit => { cmd.stdout(Stdio::inherit()); },
+            PipeRouting::Null => { cmd.stdout(Stdio::null()); },
+            PipeRouting::Unspecified => {},
         };
 
         match self.stderr {
-            PipeRouting::Piped => cmd.stderr(Stdio::piped()),
-            PipeRouting::Inherit => cmd.stderr(Stdio::inherit()),
-            PipeRouting::Null => cmd.stderr(Stdio::null()),
+            PipeRouting::Piped => { cmd.stderr(Stdio::piped()); },
+            PipeRouting::Inherit => { cmd.stderr(Stdio::inherit()); },
+            PipeRouting::Null => { cmd.stderr(Stdio::null()); },
+            PipeRouting::Unspecified => {},
         };
 
         cmd
@@ -186,8 +191,8 @@ impl Cmd {
 
     pub fn output(&mut self) -> String {
         let mut cmd = self.build_cmd();
-        cmd.stdout(Stdio::inherit());
-        cmd.stderr(Stdio::inherit());
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
         let output = cmd.output().expect(&format!("Failed to execute command: {:?}", self.args));
         String::from_utf8(output.stdout).unwrap()
     }
@@ -221,9 +226,9 @@ mod tests {
         let mut cmd = Cmd::new("echo");
         cmd.arg("Hello World");
         cmd.shell();
-        //#[cfg(target_os = "windows")]
-        //assert_eq!(cmd.output().unwrap(), "Hello World\r\n");
+        #[cfg(target_os = "windows")]
+        assert_eq!(cmd.output(), "Hello World\r\n");
         #[cfg(target_os = "linux")]
-        assert_eq!(cmd.output().unwrap(), "Hello World\n");
+        assert_eq!(cmd.output(), "Hello World\n");
     }
 }
