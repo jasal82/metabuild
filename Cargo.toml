@@ -30,8 +30,13 @@ tera = "1"
 toml = "0.7"
 yaml-rust = "0.4"
 
+[patch.crates-io]
+#rune = { path = "../rune/crates/rune" }
+
 [dev-dependencies]
+futures-executor = "0.3"
 tempfile = "3"
+thiserror = "1"
 
 [profile.release]
 opt-level = "z"

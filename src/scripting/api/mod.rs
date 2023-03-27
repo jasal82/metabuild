@@ -6,6 +6,6 @@ pub mod net;
 pub mod re;
 pub mod str;
 pub mod sys;
-pub mod tasks;
+pub mod metabuild;
 pub mod toml;
 pub mod yaml;

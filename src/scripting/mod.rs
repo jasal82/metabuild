@@ -1,6 +1,6 @@
 use rune::termcolor::{ColorChoice, StandardStream};
 use rune::ast::Span;
-use rune::{Context, compile::{CompileError, CompileErrorKind, FileSourceLoader, Item, SourceLoader}, Diagnostics, FromValue, Source, Sources, Unit, runtime::UnitFn, Vm};
+use rune::{Context, compile::{CompileError, FileSourceLoader, Item, SourceLoader}, Diagnostics, Source, Sources, runtime::Value, Vm};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -46,7 +46,7 @@ pub fn run_tasks(script_file: &Path, tasks: &Vec<String>) -> Result<(), anyhow::
     context.install(&api::re::module()?)?;
     context.install(&api::str::module()?)?;
     context.install(&api::sys::module()?)?;
-    context.install(&api::tasks::module()?)?;
+    context.install(&api::metabuild::module()?)?;
     context.install(&api::toml::module()?)?;
     context.install(&api::yaml::module()?)?;
 
@@ -70,10 +70,10 @@ pub fn run_tasks(script_file: &Path, tasks: &Vec<String>) -> Result<(), anyhow::
     let unit = result?;
 
     let mut vm = Vm::new(Arc::new(context.runtime()), Arc::new(unit));
-    let mut execution = vm.execute(["main"], ())?;
+    let mut execution = vm.execute(["main"], (tasks.iter().map(|t| t.to_owned().into()).collect::<Vec<Value>>(),))?;
     let result = execution.complete();
-    let errored = match result {
-        Ok(result) => {
+    let _errored = match result {
+        Ok(_result) => {
             None
         },
         Err(error) => {
@@ -82,35 +82,6 @@ pub fn run_tasks(script_file: &Path, tasks: &Vec<String>) -> Result<(), anyhow::
             Some(error)
         }
     };
-
-    api::tasks::call("blubb");
-    //let output = i64::from_value(output)?;
-    
-    /*if tasks.len() == 0 {
-        return Err("No tasks specified".into());
-    }
-    
-    let available_tasks = get_available_tasks(&ast);
-    let mut unknown_tasks = Vec::new();
-    tasks.iter().for_each(|task| {
-        if !available_tasks.contains(&task) {
-            unknown_tasks.push(task);
-        }
-    });
-
-    if unknown_tasks.len() > 0 {
-        return Err(format!("Unknown tasks: {:?}", unknown_tasks).into());
-    }
-
-    let mut exit_code : u8 = 0;
-    for task in tasks {
-        let mut scope = Scope::new();
-        let result = engine.call_fn::<Dynamic>(&mut scope, &ast, get_task_fn_name(&task), ()).expect("Failed to call task");
-
-        if result.is_bool() {
-            exit_code = !result.as_bool().unwrap_or(false) as u8;
-        }
-    }*/
 
     Ok(())
 }

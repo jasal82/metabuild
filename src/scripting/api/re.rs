@@ -1,5 +1,5 @@
 // This is a mess. Need help ;)
-use regex::{CaptureMatches, Captures, Match, Matches, Regex};
+use regex::Regex;
 use rune::{Any, ContextError, Module};
 
 #[derive(Any)]
@@ -96,11 +96,7 @@ impl MatchRune {
 impl CapturesRune {
     pub fn new(c: &regex::Captures) -> Self {
         Self {
-            groups: c.iter().map(|m| m.map(|m| MatchRune {
-                start: m.start(),
-                end: m.end(),
-                text: m.as_str().to_string(),
-            })).collect(),
+            groups: c.iter().map(|m| m.map(|m| MatchRune::new(&m))).collect(),
         }
     }
 
