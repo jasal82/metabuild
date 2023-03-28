@@ -6,11 +6,48 @@ mod core;
 
 use python::Venv;
 
+fn filesystem_examples() {
+    // Create a temporary directory (will be deleted when the object is dropped)
+    let t = fs::TempDir::new()?;
+    println!("Temp dir {}", t.path());
+    
+    // Find all .rn files in the current directory and subdirectories and return
+    // a list of relative paths to them
+    let files = fs::glob("**/*.rn");
+    for file in files {
+        println!("File {}", file);
+    }
+
+    // Copy all .rn files in the current directory and subdirectories to a
+    // temporary directory and test that the files are there
+    fs::copy_glob("**/*.rn", t.path());
+    if fs::is_file(t.path() + "/.mb/modules/core/mod.rn") {
+        println!("File exists");
+    }
+
+    // Create a temporary file (will be deleted when the object is dropped)
+    let f = fs::File::temp()?;
+
+    // Write some data to it
+    f.write("Hello world!");
+
+    // Rewind the file and read the data
+    f.rewind();
+    let s = f.read()?;
+
+    // Print the data and some file information
+    println(s);
+    println!("File length {}", f.len());
+    println!("File path {}", f.path());
+}
+
 pub fn mytask() {
     print("Hello from mytask!");
 }
 
 pub fn main(tasks) {
+    filesystem_examples();
+    return;
     if let Ok(venv) = Venv::new(".venv") {
         if !venv.exists() {
             venv.init();
