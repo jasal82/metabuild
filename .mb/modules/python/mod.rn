@@ -71,6 +71,6 @@ impl Venv {
             c.stdout("null");
             c.stderr("null");
         }
-        c.execute();
+        c.execute()
     }
 }

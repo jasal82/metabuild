@@ -41,22 +41,40 @@ fn filesystem_examples() {
     println!("File path {}", f.path());
 }
 
-pub fn mytask() {
-    print("Hello from mytask!");
+fn python_examples() {
+    // Create a temporary directory (will be deleted when the object is dropped)
+    let t = fs::TempDir::new()?;
+    
+    // Write a requirements file into the temporary directory
+    let reqfile = fs::File::create(t.path() + "/requirements.txt")?;
+    reqfile.write("scipy==1.10.1\n");
+    reqfile.sync();
+
+    // Create a virtual environment in the temporary directory
+    if let Ok(venv) = Venv::new(t.path() + "/.venv") {
+        if !venv.exists() {
+            venv.init();
+        }
+
+        // Install the requirements into the virtual environment; suppress the
+        // output of pip
+        venv.quiet(true);
+        venv.install_requirements(t.path() + "/requirements.txt");
+
+        // Run the python interpreter in the venv; make sure that quiet is
+        // disabled so that we can see potential output
+        venv.quiet(false);
+        let exitcode = venv.run(["python", "-c", "import scipy"]);
+        if exitcode == 0 {
+            println!("Scipy installed");
+        }
+    }
 }
 
 pub fn main(tasks) {
     filesystem_examples();
-    return;
-    if let Ok(venv) = Venv::new(".venv") {
-        if !venv.exists() {
-            venv.init();
-        }
-        venv.quiet(true);
-        venv.install_requirements("requirements.txt");
-        venv.quiet(false);
-        venv.run(["python"]);
-    }
+    python_examples();
+    
     core::paint("<red,underline|das> ist ein <blue,bold|test>\n");
     let runner = TaskRunner::new();
     runner.register("build", build);

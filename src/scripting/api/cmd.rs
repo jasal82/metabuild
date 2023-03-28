@@ -184,9 +184,9 @@ impl Cmd {
         cmd
     }
 
-    pub fn execute(&mut self) -> u8 {
+    pub fn execute(&mut self) -> i64 {
         let mut cmd = self.build_cmd();
-        cmd.status().expect(&format!("Failed to execute command: {:?}", self.args)).code().unwrap_or(1) as u8
+        cmd.status().expect(&format!("Failed to execute command: {:?}", self.args)).code().unwrap_or(1) as i64
     }
 
     pub fn output(&mut self) -> String {
