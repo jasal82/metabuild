@@ -26,6 +26,7 @@ rune-modules = { version = "0.12.1", features = ["http", "io"] }
 self_update = "0.36"
 serde = { version = "1", features = ["derive"] }
 tar = "0.4"
+tempfile = "3"
 tera = "1"
 toml = "0.7"
 yaml-rust = "0.4"
@@ -35,7 +36,6 @@ yaml-rust = "0.4"
 
 [dev-dependencies]
 futures-executor = "0.3"
-tempfile = "3"
 thiserror = "1"
 
 [profile.release]
