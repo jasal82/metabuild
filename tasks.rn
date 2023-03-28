@@ -8,11 +8,13 @@ use python::Venv;
 
 fn filesystem_examples() {
     // Create a temporary directory (will be deleted when the object is dropped)
+    println!("{}", str::paint("Creating temporary directory").blue().bold());
     let t = fs::TempDir::new()?;
     println!("Temp dir {}", t.path());
     
     // Find all .rn files in the current directory and subdirectories and return
     // a list of relative paths to them
+    println!("{}", str::paint("Finding .rn files in current dir and subdirs").blue().bold());
     let files = fs::glob("**/*.rn");
     for file in files {
         println!("File {}", file);
@@ -20,18 +22,22 @@ fn filesystem_examples() {
 
     // Copy all .rn files in the current directory and subdirectories to a
     // temporary directory and test that the files are there
+    println!("{}", str::paint("Copying .rn files to temp dir").blue().bold());
     fs::copy_glob("**/*.rn", t.path());
     if fs::is_file(t.path() + "/.mb/modules/core/mod.rn") {
         println!("File exists");
     }
 
     // Create a temporary file (will be deleted when the object is dropped)
+    println!("{}", str::paint("Creating temporary file").blue().bold());
     let f = fs::File::temp()?;
 
     // Write some data to it
+    println!("{}", str::paint("Writing to temporary file").blue().bold());
     f.write("Hello world!");
 
     // Rewind the file and read the data
+    println!("{}", str::paint("Reading from temporary file").blue().bold());
     f.rewind();
     let s = f.read()?;
 
@@ -75,7 +81,7 @@ pub fn main(tasks) {
     filesystem_examples();
     python_examples();
     
-    core::paint("<red,underline|das> ist ein <blue,bold|test>\n");
+    println!("{} ist ein {}", str::paint("das").red().underline(), str::paint("test").blue().bold());
     let runner = TaskRunner::new();
     runner.register("build", build);
     runner.run(tasks);
