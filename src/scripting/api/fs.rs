@@ -181,6 +181,13 @@ impl File {
         })
     }
 
+    fn sync(&self) -> std::io::Result<()> {
+        match self.inner {
+            FileKind::TempFile(ref f) => f.as_file().sync_all(),
+            FileKind::RegularFile { ref file, .. } => file.sync_all(),
+        }
+    }
+
     fn read(&mut self) -> std::io::Result<String> {
         let mut s = String::new();
         match self.inner {
@@ -313,6 +320,7 @@ pub fn module() -> Result<Module, ContextError> {
     module.function(["File", "create"], File::create)?;
     module.function(["File", "append"], File::append)?;
     module.function(["File", "temp"], File::temp)?;
+    module.inst_fn("sync", File::sync)?;
     module.inst_fn("read", File::read)?;
     module.inst_fn("write", File::write)?;
     module.inst_fn("seek_start", File::seek_start)?;
