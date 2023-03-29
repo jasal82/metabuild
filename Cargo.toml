@@ -1,6 +1,6 @@
 [package]
 name = "mb"
-version = "0.2.2"
+version = "0.3.0"
 description = "Build automation tool"
 authors = ["Johannes Asal"]
 license = "MIT"
@@ -30,9 +30,6 @@ tempfile = "3"
 tera = "1"
 toml = "0.7"
 yaml-rust = "0.4"
-
-[patch.crates-io]
-#rune = { path = "../rune/crates/rune" }
 
 [dev-dependencies]
 futures-executor = "0.3"
