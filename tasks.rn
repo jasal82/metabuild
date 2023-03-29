@@ -6,15 +6,19 @@ mod core;
 
 use python::Venv;
 
+fn step(msg) {
+    println!("{}", str::paint(format!("{}...", msg)).blue().bold());
+}
+
 fn filesystem_examples() {
     // Create a temporary directory (will be deleted when the object is dropped)
-    println!("{}", str::paint("Creating temporary directory").blue().bold());
+    step("Creating temporary directory");
     let t = fs::TempDir::new()?;
     println!("Temp dir {}", t.path());
     
     // Find all .rn files in the current directory and subdirectories and return
     // a list of relative paths to them
-    println!("{}", str::paint("Finding .rn files in current dir and subdirs").blue().bold());
+    step("Finding .rn files in current dir and subdirs");
     let files = fs::glob("**/*.rn");
     for file in files {
         println!("File {}", file);
@@ -22,22 +26,22 @@ fn filesystem_examples() {
 
     // Copy all .rn files in the current directory and subdirectories to a
     // temporary directory and test that the files are there
-    println!("{}", str::paint("Copying .rn files to temp dir").blue().bold());
+    step("Copying .rn files to temp dir");
     fs::copy_glob("**/*.rn", t.path());
     if fs::is_file(t.path() + "/.mb/modules/core/mod.rn") {
         println!("File exists");
     }
 
     // Create a temporary file (will be deleted when the object is dropped)
-    println!("{}", str::paint("Creating temporary file").blue().bold());
+    step("Creating temporary file");
     let f = fs::File::temp()?;
 
     // Write some data to it
-    println!("{}", str::paint("Writing to temporary file").blue().bold());
+    step("Writing to temporary file");
     f.write("Hello world!");
 
     // Rewind the file and read the data
-    println!("{}", str::paint("Reading from temporary file").blue().bold());
+    step("Reading from temporary file");
     f.rewind();
     let s = f.read()?;
 
@@ -49,46 +53,79 @@ fn filesystem_examples() {
 
 fn python_examples() {
     // Create a temporary directory (will be deleted when the object is dropped)
+    step("Creating temporary directory");
     let t = fs::TempDir::new()?;
     
     // Write a requirements file into the temporary directory
+    step("Writing requirements file");
     let reqfile = fs::File::create(t.path() + "/requirements.txt")?;
-    reqfile.write("scipy==1.10.1\n");
+    reqfile.write("scipy\n");
     reqfile.sync();
 
     // Create a virtual environment in the temporary directory
+    step("Preparing virtual environment");
     if let Ok(venv) = Venv::new(t.path() + "/.venv") {
         if !venv.exists() {
+            step("Initializing virtual environment");
             venv.init();
         }
 
         // Install the requirements into the virtual environment; suppress the
         // output of pip
+        step("Installing requirements");
         venv.quiet(true);
         venv.install_requirements(t.path() + "/requirements.txt");
 
         // Run the python interpreter in the venv; make sure that quiet is
         // disabled so that we can see potential output
+        step("Running python interpreter");
         venv.quiet(false);
         let exitcode = venv.run(["python", "-c", "import scipy"]);
         if exitcode == 0 {
-            println!("Scipy installed");
+            println!("Success");
         }
     }
 }
 
-pub fn main(tasks) {
-    filesystem_examples();
-    python_examples();
+fn config_examples() {
+    // Create a temporary directory (will be deleted when the object is dropped)
+    step("Creating temporary directory");
+    let t = fs::TempDir::new()?;
     
-    println!("{} ist ein {}", str::paint("das").red().underline(), str::paint("test").blue().bold());
-    let runner = TaskRunner::new();
-    runner.register("build", build);
-    runner.run(tasks);
-    println!("Tasks {}", core::string::join(tasks, "; "));
-    println!("CLI args {}", core::string::join(sys::args(), ","));
+    // Write a config file into the temporary directory
+    step("Writing config file");
+    let cfgfile = fs::File::create(t.path() + "/config.toml")?;
+    cfgfile.write("
+        [core]
+        version = \"0.1.0\"
+        [core.dependencies]
+        python = \"3.7.0\"
+    ");
+    cfgfile.sync();
+
+    // Load the config file
+    step("Loading config file");
+    let cfg = toml::from_file(t.path() + "/config.toml")?;
+
+    // Print the config file
+    step("Printing values from the config");
+    println!("core.version: {}", cfg.core.version);
+    println!("core.dependencies.python: {}", cfg.core.dependencies.python);
 }
 
-fn build() {
-    println!("-- build");
+fn net_examples() {
+    step("Sending an HTTP request");
+    println!("GET https://www.google.de");
+    let response = http::get("https://www.google.de")?;
+    step("Printing the status");
+    println!("Status: {}", response.status());
+}
+
+pub fn main(tasks) {
+    let runner = TaskRunner::new();
+    runner.register("fs_examples", filesystem_examples);
+    runner.register("py_examples", python_examples);
+    runner.register("cfg_examples", config_examples);
+    runner.register("net_examples", net_examples);
+    runner.run(tasks);
 }

@@ -48,6 +48,9 @@ impl Venv {
         self.run([self.interpreter, "-m", "pip", "install", "-r", file]);
     }
 
+    // This is executed in a shell by default. If you need to capture the
+    // exit code of a process run inside the shell make sure to propagate
+    // it to the parent process.
     pub fn run(self, command) {
         let c = Command::new(command[0]);
         c.shell();

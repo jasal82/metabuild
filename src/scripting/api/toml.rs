@@ -30,13 +30,12 @@ fn convert_table_to_object(table: Table) -> Object {
     map
 }
 
-pub fn from_file(file: &str) -> Object {
-    let content = std::fs::read_to_string(file).unwrap();
-    from_string(&content)
+pub fn from_file(file: &str) -> Result<Object, anyhow::Error> {
+    Ok(from_string(&std::fs::read_to_string(file)?)?)
 }
 
-pub fn from_string(content: &str) -> Object {
-    convert_table_to_object(content.parse::<Table>().unwrap())
+pub fn from_string(content: &str) -> Result<Object, anyhow::Error> {
+    Ok(convert_table_to_object(content.parse::<Table>()?))
 }
 
 pub fn module() -> Result<Module, ContextError> {

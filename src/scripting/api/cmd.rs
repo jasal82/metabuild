@@ -19,6 +19,14 @@ mod internal {
     }
 
     pub fn add_shell_arguments(command: &mut Command, args: &Vec<String>) {
+        // Append '; exit $LASTEXITCODE' to the command so that the exit
+        // code of the actual command is returned instead of the exit code
+        // of powershell. This is done to make the behavior of the command
+        // module consistent across platforms. Linux shells already return
+        // the exit code of the last command in the script without the need
+        // for an explicit exit command.
+        let mut args = args.clone();
+        args.append(&mut vec![";".into(), "exit".into(), "$LASTEXITCODE".into()]);
         command.arg("-Command");
         command.arg(format!("& {{{}}}", args.iter().map(|a| quote(a)).collect::<Vec<String>>().join(" ")));
     }
@@ -186,7 +194,8 @@ impl Cmd {
 
     pub fn execute(&mut self) -> i64 {
         let mut cmd = self.build_cmd();
-        cmd.status().expect(&format!("Failed to execute command: {:?}", self.args)).code().unwrap_or(1) as i64
+        let exitcode = cmd.status().expect(&format!("Failed to execute command: {:?}", self.args)).code().unwrap_or(1);
+        exitcode as i64
     }
 
     pub fn output(&mut self) -> String {

@@ -1,6 +1,15 @@
+use colored::Colorize;
 use rune::{Any, ContextError, Module};
 use rune::runtime::{Function, Key, Value, VmError, Vec};
 use std::collections::HashMap;
+
+pub fn warning(msg: &str) {
+    println!("[{}] {}", "WARNING".bright_yellow().bold(), msg);
+}
+
+pub fn error(msg: &str) {
+    println!("[{}] {}", "ERROR  ".bright_red().bold(), msg);
+}
 
 #[derive(Any)]
 struct TaskRunner {
@@ -21,18 +30,31 @@ impl TaskRunner {
     pub fn call(&self, name: Key, args: &Vec) -> Result<Value, VmError> {
         match self.tasks.get(&name) {
             Some(f) => f.call::<std::vec::Vec<Value>, Value>(args.clone().into_inner()),
-            None => Err(VmError::panic(format!("Function {:?} not found", name.into_value()))),
+            None => {
+                let v = name.into_value();
+                error(&format!("Function {:?} not found", v));
+                Err(VmError::panic(format!("Function {:?} not found", v)))
+            }
         }
     }
 
     pub fn run(&self, tasks: &Vec) {
-        for task in tasks {
-            match self.tasks.get(&Key::from_value(task).unwrap()) {
-                Some(f) => {
-                    let _ = f.call::<std::vec::Vec<Value>, Value>(vec![]);
-                }
-                None => {
-                    println!("Task {:?} not found", task);
+        if tasks.is_empty() {
+            error("No tasks specified");
+        } else {
+            for task in tasks {
+                match self.tasks.get(&Key::from_value(task).unwrap()) {
+                    Some(f) => {
+                        match f.call::<(), Value>(()) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                error(&format!("Task {:?} failed: {}", task, e));
+                            }
+                        }
+                    },
+                    None => {
+                        error(&format!("Task {:?} not found", task));
+                    }
                 }
             }
         }

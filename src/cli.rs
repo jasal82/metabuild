@@ -20,6 +20,8 @@ pub enum Commands {
         tasks: Vec<String>,
         #[arg(short, long)]
         file: Option<PathBuf>,
+        #[arg(short, long, default_value = "false")]
+        warn: bool
     },
     Update,
     Config {

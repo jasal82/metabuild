@@ -49,8 +49,8 @@ pub fn main() -> Result<(), anyhow::Error> {
             commands::install::install_executables(&dependency_config);
             Ok(())
         },
-        Commands::Run { tasks, file } => {
-            if let Err(e) = scripting::run_tasks(file.as_ref().unwrap_or(&PathBuf::from("build.rhai")), tasks) {
+        Commands::Run { tasks, file, warn } => {
+            if let Err(e) = scripting::run_tasks(file.as_ref().unwrap_or(&PathBuf::from("tasks.rn")), tasks, *warn) {
                 Cli::command().print_help().unwrap();
                 Err(e)
             } else {
