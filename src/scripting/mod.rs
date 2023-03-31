@@ -37,6 +37,7 @@ impl SourceLoader for CustomSourceLoader {
 pub fn run_tasks(script_file: &Path, tasks: &Vec<String>, warn: bool) -> Result<(), anyhow::Error> {
     let mut context = Context::with_default_modules()?;
     context.install(&rune_modules::io::module(true)?)?;
+    context.install(&rune_modules::json::module(true)?)?;
     context.install(&api::arch::module()?)?;
     context.install(&api::cmd::module()?)?;
     context.install(&api::fs::module()?)?;
@@ -57,12 +58,17 @@ pub fn run_tasks(script_file: &Path, tasks: &Vec<String>, warn: bool) -> Result<
         true => Diagnostics::new(),
         false => Diagnostics::without_warnings()
     };
+    
     let mut source_loader = CustomSourceLoader::new();
+
+    let mut options = rune::Options::default();
+    options.debug_info(true);
 
     let result = rune::prepare(&mut sources)
         .with_context(&context)
         .with_diagnostics(&mut diagnostics)
         .with_source_loader(&mut source_loader)
+        .with_options(&options)
         .build();
 
     if !diagnostics.is_empty() {

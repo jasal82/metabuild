@@ -1,6 +1,7 @@
 use arch::*;
 use metabuild::TaskRunner;
 
+mod artifactory;
 mod python;
 mod core;
 
@@ -114,11 +115,23 @@ fn config_examples() {
 }
 
 fn net_examples() {
-    step("Sending an HTTP request");
-    println!("GET https://www.google.de");
-    let response = http::get("https://www.google.de")?;
+    // Send a dummy GET request and display the status code and response
+    step("Sending an HTTP GET request");
+    println!("GET https://reqres.in/api/users?page=2");
+    let response = http::get("https://reqres.in/api/users?page=2")?;
     step("Printing the status");
     println!("Status: {}", response.status());
+    step("Printing the payload");
+    println!("Payload: {}", response.text()?);
+    
+    // Send a dummy POST request and display the status code and response
+    step("Sending an HTTP POST request");
+    println!("POST https://reqres.in/api/login");
+    let response = http::post("https://reqres.in/api/users", "{\"name\": \"johannes\", \"job\": \"architect\"}")?;
+    step("Printing the status");
+    println!("Status: {}", response.status());
+    step("Printing the payload");
+    println!("Payload: {}", response.text()?);
 }
 
 pub fn main(tasks) {

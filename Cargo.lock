@@ -1678,6 +1678,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4910f065e0918bc448ff915ca122120f427699398f6673bd45af7e161d9f4445"
 dependencies = [
  "rune",
+ "serde_json",
 ]
 
 [[package]]

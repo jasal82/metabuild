@@ -1,0 +1,69 @@
+pub struct Client {
+    url,
+    token,
+}
+
+impl Client {
+    pub fn new(url, token) {
+        Client {
+            url,
+            token,
+        }
+    }
+
+    fn get(self, url) {
+        let res = http::Client::new().get(url)?.header("X-JFrog-Art-Api", self.token).send()?;
+        let body = res.text()?;
+        json::from_string(body)?
+    }
+
+    fn put(self, url, data) {
+        let res = http::Client::new().put(url)?.header("X-JFrog-Art-Api", self.token);
+        if let Some(data) = data {
+            res.body(data);
+        }
+        let body = res.send()?.text()?;
+        json::from_string(body)?
+    }
+
+    fn post(self, url, data) {
+        let res = http::Client::new().post(url)?.header("X-JFrog-Art-Api", self.token);
+        if let Some(data) = data {
+            res.body(data);
+        }
+        let body = res.send()?.text()?;
+        json::from_string(body)?
+    }
+
+    fn delete(self, url) {
+        let res = http::Client::new().delete(url)?.header("X-JFrog-Art-Api", self.token).send()?;
+    }
+
+    pub fn item_info(self, repo_key, item_path) {
+        self.get(format!("{}/api/storage/{}/{}", self.url, repo_key, item_path))
+    }
+
+    pub fn file_statistics(self, repo_key, item_path) {
+        self.get(format!("{}/api/storage/{}/{}?stats", self.url, repo_key, item_path))
+    }
+
+    pub fn item_properties(self, repo_key, item_path) {
+        self.get(format!("{}/api/storage/{}/{}?properties", self.url, repo_key, item_path))
+    }
+
+    pub fn create_directory(self, repo_key, item_path) {
+        self.put(format!("{}/api/storage/{}/{}", self.url, repo_key, item_path), None)
+    }
+
+    pub fn delete_item(self, repo_key, item_path) {
+        self.delete(format!("{}/{}/{}", self.url, repo_key, item_path));
+    }
+
+    pub fn copy_item(self, src_repo_key, src_item_path, dst_repo_key, dst_item_path) {
+        self.post(format!("{}/api/copy/{}/{}?to=/{}/{}", self.url, src_repo_key, src_item_path, dst_repo_key, dst_item_path), None)
+    }
+
+    pub fn move_item(self, src_repo_key, src_item_path, dst_repo_key, dst_item_path) {
+        self.post(format!("{}/api/move/{}/{}?to=/{}/{}", self.url, src_repo_key, src_item_path, dst_repo_key, dst_item_path), None)
+    }
+}

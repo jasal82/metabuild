@@ -1,0 +1,3 @@
+- Remaining file stats (modifier, time)
+- Logging
+- 'strace' logging for embedded api

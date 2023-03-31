@@ -15,9 +15,12 @@ pub fn module() -> Result<Module, ContextError> {
 
     module.function(["Client", "new"], Client::new)?;
     module.function(["get"], get)?;
+    module.function(["post"], post)?;
 
     module.inst_fn("get", Client::get)?;
+    module.inst_fn("put", Client::put)?;
     module.inst_fn("post", Client::post)?;
+    module.inst_fn("delete", Client::delete)?;
 
     module.inst_fn("text", Response::text)?;
     module.inst_fn("json", Response::json)?;
@@ -25,6 +28,7 @@ pub fn module() -> Result<Module, ContextError> {
 
     module.inst_fn("send", RequestBuilder::send)?;
     module.inst_fn("header", RequestBuilder::header)?;
+    module.inst_fn("body", RequestBuilder::body)?;
     module.inst_fn("body_bytes", RequestBuilder::body_bytes)?;
 
     module.inst_fn(Protocol::STRING_DISPLAY, Error::display)?;
@@ -110,6 +114,12 @@ impl RequestBuilder {
         }
     }
 
+    fn body(self, body: &str) -> Result<Self, Error> {
+        Ok(Self {
+            request: self.request.body(body.to_owned()),
+        })
+    }
+
     /// Set the request body from bytes.
     fn body_bytes(self, bytes: Bytes) -> Result<Self, Error> {
         let bytes = bytes.into_vec();
@@ -133,9 +143,21 @@ impl Client {
         Ok(RequestBuilder { request })
     }
 
+    /// Construct a builder to PUT the given URL.
+    fn put(&self, url: &str) -> Result<RequestBuilder, Error> {
+        let request = self.client.put(url);
+        Ok(RequestBuilder { request })
+    }
+
     /// Construct a builder to POST to the given URL.
     fn post(&self, url: &str) -> Result<RequestBuilder, Error> {
         let request = self.client.post(url);
+        Ok(RequestBuilder { request })
+    }
+
+    /// Construct a builder to DELETE the given URL.
+    fn delete(&self, url: &str) -> Result<RequestBuilder, Error> {
+        let request = self.client.delete(url);
         Ok(RequestBuilder { request })
     }
 }
@@ -144,5 +166,11 @@ impl Client {
 fn get(url: &str) -> Result<Response, Error> {
     Ok(Response {
         response: reqwest::blocking::get(url)?,
+    })
+}
+
+fn post(url: &str, b: &str) -> Result<Response, Error> {
+    Ok(Response {
+        response: reqwest::blocking::Client::new().post(url).body(b.to_owned()).send()?,
     })
 }
