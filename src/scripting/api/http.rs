@@ -8,16 +8,16 @@ use std::sync::Arc;
 pub fn module() -> Result<Module, ContextError> {
     let mut module = Module::with_crate("http");
 
-    module.ty::<Agent>()?;
+    module.ty::<Client>()?;
     module.ty::<Request>()?;
     module.ty::<Response>()?;
     module.ty::<Error>()?;
 
-    module.function(["Agent", "new"], Agent::new)?;
-    module.inst_fn("get", Agent::get)?;
-    module.inst_fn("put", Agent::put)?;
-    module.inst_fn("post", Agent::post)?;
-    module.inst_fn("delete", Agent::delete)?;
+    module.function(["Client", "new"], Client::new)?;
+    module.inst_fn("get", Client::get)?;
+    module.inst_fn("put", Client::put)?;
+    module.inst_fn("post", Client::post)?;
+    module.inst_fn("delete", Client::delete)?;
 
     module.inst_fn("call", Request::call)?;
     module.inst_fn("set", Request::set)?;
@@ -33,7 +33,7 @@ pub fn module() -> Result<Module, ContextError> {
 }
 
 #[derive(Debug, Any)]
-pub struct Agent {
+pub struct Client {
     client: ureq::Agent,
 }
 
@@ -52,7 +52,7 @@ pub struct Error {
     error: ureq::Error,
 }
 
-impl Agent {
+impl Client {
     pub fn new() -> Self {
         Self {
             client: ureq::builder()
