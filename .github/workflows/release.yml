@@ -9,32 +9,8 @@ env:
 
 jobs:
   publish-linux:
-    runs-on: ${{ matrix.os.host }}
-    container: ${{ matrix.os.container }}
-    
-    strategy:
-      matrix:
-        os:
-          - name: linux-debian-buster
-            host: ubuntu-22.04
-            container: "debian:buster-slim"
-            asset_name: mb-${{ github.ref_name }}-linux-x86_64-debian-buster
-          - name: linux-debian-bullseye
-            host: ubuntu-22.04
-            container: "debian:bullseye-slim"
-            asset_name: mb-${{ github.ref_name }}-linux-x86_64-debian-bullseye
-          - name: linux-alpine-3.16
-            host: ubuntu-22.04
-            container: "alpine:3.16"
-            asset_name: mb-${{ github.ref_name }}-linux-x86_64-alpine-3.16
-          - name: linux-ubuntu-2204
-            host: ubuntu-22.04
-            container: ubuntu:22.04
-            asset_name: mb-${{ github.ref_name }}-linux-x86_64-ubuntu-22.04
-          - name: linux-ubuntu-2004
-            host: ubuntu-22.04
-            container: ubuntu:20.04
-            asset_name: mb-${{ github.ref_name }}-linux-x86_64-ubuntu-20.04
+    runs-on: ubuntu-latest
+    container: ubuntu-22.04
     
     permissions:
       contents: write
@@ -44,16 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install prerequisites
-        if: matrix.os.container != 'alpine:3.16'
         run: |
           apt-get update
           apt-get install -y gcc libssl-dev pkg-config curl
-
-      - name: Install prerequisites
-        if: matrix.os.container == 'alpine:3.16'
-        run: |
-          apk update
-          apk add build-base openssl-dev pkgconfig curl
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -66,14 +35,14 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --locked
+          args: --release --locked --target x86_64-unknown-linux-musl
 
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: target/release/mb
-          asset_name: ${{ matrix.os.asset_name }}
+          asset_name: mb-${{ github.ref_name }}-x86_64-unknown-linux-musl
           tag: ${{ github.ref }}
   
   publish-windows:
@@ -87,7 +56,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      run: cargo build --release --locked
+      run: cargo build --release --locked --target x86_64-pc-windows-msvc
     - name: Build Windows installer
       run: |
         cargo install cargo-wix
@@ -100,7 +69,7 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: target/release/mb.exe
-        asset_name: mb-${{ github.ref_name }}-windows-x86_64.exe
+        asset_name: mb-${{ github.ref_name }}-x86_64-pc-windows-msvc.exe
         tag: ${{ github.ref }}
     - name: Upload Windows installer to release
       uses: svenstaro/upload-release-action@v2
