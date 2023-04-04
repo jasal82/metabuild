@@ -29,11 +29,11 @@ jobs:
             asset_name: mb-${{ github.ref_name }}-linux-x86_64-alpine-3.16
           - name: linux-ubuntu-2204
             host: ubuntu-22.04
-            container: null
+            container: ubuntu:22.04
             asset_name: mb-${{ github.ref_name }}-linux-x86_64-ubuntu-22.04
           - name: linux-ubuntu-2004
-            host: ubuntu-20.04
-            container: null
+            host: ubuntu-22.04
+            container: ubuntu:20.04
             asset_name: mb-${{ github.ref_name }}-linux-x86_64-ubuntu-20.04
     
     permissions:
@@ -43,18 +43,30 @@ jobs:
     
     steps:
       - uses: actions/checkout@v3
-      - name: Build
-        if: matrix.os.container != 'rust:alpine3.16' && matrix.os.container != null
+      - name: Install prerequisites
+        if: matrix.os.container != 'alpine:3.16'
         run: |
           apt-get update
-          apt-get install -y gcc libssl-dev pkg-config
-          cargo build --release --locked
-      - name: Build
-        if: matrix.os.container == 'rust:alpine3.16'
+          apt-get install -y gcc libssl-dev pkg-config curl
+
+      - name: Install prerequisites
+        if: matrix.os.container == 'alpine:3.16'
         run: |
           apk update
-          apk add build-base openssl-dev pkgconfig
-          cargo build --release --locked
+          apk add build-base openssl-dev pkgconfig curl
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build --release --locked
+
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
