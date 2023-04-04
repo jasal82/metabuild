@@ -9,20 +9,32 @@ env:
 
 jobs:
   publish-linux:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os.host }}
+    container: ${{ matrix.os.container }}
     
     strategy:
       matrix:
-        include:
-          - container: "rust:slim-buster"
+        os:
+          - name: linux-debian-buster
+            host: ubuntu-22.04
+            container: "debian:buster-slim"
             asset_name: mb-${{ github.ref_name }}-linux-x86_64-debian-buster
-          - container: "rust:slim-bullseye"
+          - name: linux-debian-bullseye
+            host: ubuntu-22.04
+            container: "debian:bullseye-slim"
             asset_name: mb-${{ github.ref_name }}-linux-x86_64-debian-bullseye
-          - container: "rust:alpine3.16"
+          - name: linux-alpine-3.16
+            host: ubuntu-22.04
+            container: "alpine:3.16"
             asset_name: mb-${{ github.ref_name }}-linux-x86_64-alpine-3.16
-    
-    container:
-      image: ${{ matrix.container }}
+          - name: linux-ubuntu-2204
+            host: ubuntu-22.04
+            container: null
+            asset_name: mb-${{ github.ref_name }}-linux-x86_64-ubuntu-22.04
+          - name: linux-ubuntu-2004
+            host: ubuntu-20.04
+            container: null
+            asset_name: mb-${{ github.ref_name }}-linux-x86_64-ubuntu-20.04
     
     permissions:
       contents: write
@@ -32,13 +44,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build
-        if: matrix.container != 'rust:alpine3.16'
+        if: matrix.os.container != 'rust:alpine3.16'
         run: |
           apt-get update
           apt-get install -y gcc libssl-dev pkg-config
           cargo build --release --locked
       - name: Build
-        if: matrix.container == 'rust:alpine3.16'
+        if: matrix.os.container == 'rust:alpine3.16'
         run: |
           apk update
           apk add build-base openssl-dev pkgconfig
@@ -48,7 +60,7 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: target/release/mb
-          asset_name: ${{ matrix.asset_name }}
+          asset_name: ${{ matrix.os.asset_name }}
           tag: ${{ github.ref }}
   
   publish-windows:
