@@ -1,5 +1,5 @@
-use rune::{Any, ContextError, Module};
 use rune::runtime::Object;
+use rune::{Any, ContextError, Module};
 use std::process::{Command, Stdio};
 
 #[cfg(target_os = "windows")]
@@ -7,8 +7,8 @@ mod internal {
     use std::process::Command;
 
     fn quote(s: &str) -> String {
-        if s.contains(" ") {
-            format!(r#"'{}'"#, s)
+        if s.contains(' ') {
+            format!(r#"'{s}'"#)
         } else {
             s.into()
         }
@@ -18,17 +18,23 @@ mod internal {
         Command::new("powershell")
     }
 
-    pub fn add_shell_arguments(command: &mut Command, args: &Vec<String>) {
+    pub fn add_shell_arguments(command: &mut Command, args: &[String]) {
         // Append '; exit $LASTEXITCODE' to the command so that the exit
         // code of the actual command is returned instead of the exit code
         // of powershell. This is done to make the behavior of the command
         // module consistent across platforms. Linux shells already return
         // the exit code of the last command in the script without the need
         // for an explicit exit command.
-        let mut args = args.clone();
+        let mut args = args.to_owned();
         args.append(&mut vec![";".into(), "exit".into(), "$LASTEXITCODE".into()]);
         command.arg("-Command");
-        command.arg(format!("& {{{}}}", args.iter().map(|a| quote(a)).collect::<Vec<String>>().join(" ")));
+        command.arg(format!(
+            "& {{{}}}",
+            args.iter()
+                .map(|a| quote(a))
+                .collect::<Vec<String>>()
+                .join(" ")
+        ));
     }
 }
 
@@ -50,7 +56,12 @@ mod internal {
 
     pub fn add_shell_arguments(command: &mut Command, args: &Vec<String>) {
         command.arg("-c");
-        command.arg(args.iter().map(|a| quote(a)).collect::<Vec<String>>().join(" "));
+        command.arg(
+            args.iter()
+                .map(|a| quote(a))
+                .collect::<Vec<String>>()
+                .join(" "),
+        );
     }
 }
 
@@ -107,7 +118,10 @@ impl Cmd {
 
     pub fn envs(&mut self, envs: Object) {
         for (key, value) in envs {
-            self.envs.push((key.to_string(), value.into_string().unwrap().take().unwrap()));
+            self.envs.push((
+                key.to_string(),
+                value.into_string().unwrap().take().unwrap(),
+            ));
         }
     }
 
@@ -129,7 +143,7 @@ impl Cmd {
             "inherit" => self.stdout = PipeRouting::Inherit,
             "null" => self.stdout = PipeRouting::Null,
             "unspecified" => self.stdout = PipeRouting::Unspecified,
-            _ => panic!("Invalid stdout routing: {}", stdout),
+            _ => panic!("Invalid stdout routing: {stdout}"),
         }
     }
 
@@ -139,7 +153,7 @@ impl Cmd {
             "inherit" => self.stderr = PipeRouting::Inherit,
             "null" => self.stderr = PipeRouting::Null,
             "unspecified" => self.stderr = PipeRouting::Unspecified,
-            _ => panic!("Invalid stderr routing: {}", stderr),
+            _ => panic!("Invalid stderr routing: {stderr}"),
         }
     }
 
@@ -149,14 +163,13 @@ impl Cmd {
                 let mut cmd = internal::new_shell_command();
                 internal::add_shell_arguments(&mut cmd, &self.args);
                 cmd
-            },
+            }
             false => {
                 let mut cmd = Command::new(&self.args[0]);
                 cmd.args(self.args.iter().skip(1));
                 cmd
             }
         };
-        
 
         if self.env_clear {
             cmd.env_clear();
@@ -176,17 +189,29 @@ impl Cmd {
         }
 
         match self.stdout {
-            PipeRouting::Piped => { cmd.stdout(Stdio::piped()); },
-            PipeRouting::Inherit => { cmd.stdout(Stdio::inherit()); },
-            PipeRouting::Null => { cmd.stdout(Stdio::null()); },
-            PipeRouting::Unspecified => {},
+            PipeRouting::Piped => {
+                cmd.stdout(Stdio::piped());
+            }
+            PipeRouting::Inherit => {
+                cmd.stdout(Stdio::inherit());
+            }
+            PipeRouting::Null => {
+                cmd.stdout(Stdio::null());
+            }
+            PipeRouting::Unspecified => {}
         };
 
         match self.stderr {
-            PipeRouting::Piped => { cmd.stderr(Stdio::piped()); },
-            PipeRouting::Inherit => { cmd.stderr(Stdio::inherit()); },
-            PipeRouting::Null => { cmd.stderr(Stdio::null()); },
-            PipeRouting::Unspecified => {},
+            PipeRouting::Piped => {
+                cmd.stderr(Stdio::piped());
+            }
+            PipeRouting::Inherit => {
+                cmd.stderr(Stdio::inherit());
+            }
+            PipeRouting::Null => {
+                cmd.stderr(Stdio::null());
+            }
+            PipeRouting::Unspecified => {}
         };
 
         cmd
@@ -194,7 +219,11 @@ impl Cmd {
 
     pub fn execute(&mut self) -> i64 {
         let mut cmd = self.build_cmd();
-        let exitcode = cmd.status().expect(&format!("Failed to execute command: {:?}", self.args)).code().unwrap_or(1);
+        let exitcode = cmd
+            .status()
+            .unwrap_or_else(|_| panic!("Failed to execute command: {:?}", self.args))
+            .code()
+            .unwrap_or(1);
         exitcode as i64
     }
 
@@ -202,7 +231,9 @@ impl Cmd {
         let mut cmd = self.build_cmd();
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-        let output = cmd.output().expect(&format!("Failed to execute command: {:?}", self.args));
+        let output = cmd
+            .output()
+            .unwrap_or_else(|_| panic!("Failed to execute command: {:?}", self.args));
         String::from_utf8(output.stdout).unwrap()
     }
 }

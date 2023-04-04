@@ -72,40 +72,30 @@ pub fn copy_dir(src: &str, dst: &str) -> std::io::Result<()> {
 }
 
 pub fn copy_glob(pattern: &str, dst: &str) -> Result<(), anyhow::Error> {
-    let glob = glob::glob(pattern).map_err(|e| {
-        VmError::panic(format!(
-            "Failed to evaluate glob pattern: {}",
-            e.to_string()
-        ))
-    })?;
+    let glob = glob::glob(pattern)
+        .map_err(|e| VmError::panic(format!("Failed to evaluate glob pattern: {e}")))?;
     for entry in glob.filter_map(|entry| entry.ok()) {
         let ft = entry
             .symlink_metadata()
             .map(|m| m.file_type())
-            .map_err(|e| {
-                VmError::panic(format!("Failed to fetch file metadata: {}", e.to_string()))
-            })?;
+            .map_err(|e| VmError::panic(format!("Failed to fetch file metadata: {e}")))?;
         if ft.is_dir() {
-            copy_dir_internal(&entry, &Path::new(dst).join(&entry)).map_err(|e| {
-                VmError::panic(format!("Failed to copy directory: {}", e.to_string()))
-            })?;
+            copy_dir_internal(&entry, &Path::new(dst).join(&entry))
+                .map_err(|e| VmError::panic(format!("Failed to copy directory: {e}")))?;
         } else {
             let to = Path::new(dst).join(&entry);
             let to_dir = to.parent();
             if let Some(to_dir) = to_dir {
-                std::fs::create_dir_all(&to_dir).map_err(|e| {
+                std::fs::create_dir_all(to_dir).map_err(|e| {
                     VmError::panic(format!(
-                        "Failed to create directory {}: {}",
-                        to.to_string_lossy(),
-                        e.to_string()
+                        "Failed to create directory {}: {e}",
+                        to.to_string_lossy()
                     ))
                 })?;
                 std::fs::copy(&entry, to).map_err(|e| {
                     VmError::panic(format!(
-                        "Failed to copy file {} to destination {}: {}",
-                        entry.to_string_lossy(),
-                        dst,
-                        e.to_string()
+                        "Failed to copy file {} to destination {dst}: {e}",
+                        entry.to_string_lossy()
                     ))
                 })?;
             }

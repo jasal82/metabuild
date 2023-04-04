@@ -38,14 +38,22 @@ mod tests {
     #[test]
     fn test_extract() {
         let temp_dir = tempdir().unwrap();
-        extract("tests/test.tar.gz", temp_dir.path().as_os_str().to_str().unwrap()).unwrap();
+        extract(
+            "tests/test.tar.gz",
+            temp_dir.path().as_os_str().to_str().unwrap(),
+        )
+        .unwrap();
         assert!(temp_dir.path().join("arch.rs").exists());
     }
 
     #[test]
     fn test_create() {
         let temp_file = NamedTempFile::new().unwrap();
-        create(temp_file.path().as_os_str().to_str().unwrap(), "src/scripting/api").unwrap();
+        create(
+            temp_file.path().as_os_str().to_str().unwrap(),
+            "src/scripting/api",
+        )
+        .unwrap();
         assert!(temp_file.path().exists());
         assert!(temp_file.path().metadata().unwrap().len() > 0);
     }

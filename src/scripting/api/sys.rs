@@ -1,6 +1,6 @@
 use colored::Colorize;
-use rune::{ContextError, Module};
 use rune::runtime::Object;
+use rune::{ContextError, Module};
 
 pub fn is_windows() -> bool {
     cfg!(target_os = "windows")
@@ -11,23 +11,23 @@ pub fn is_linux() -> bool {
 }
 
 pub fn args() -> Vec<String> {
-    std::env::args().map(|s| s.into()).collect()
+    std::env::args().collect()
 }
 
 pub fn env() -> Object {
     let mut map = Object::new();
     std::env::vars().for_each(|(k, v)| {
-        map.insert(k.into(), v.into());
+        map.insert(k, v.into());
     });
     map
 }
 
 pub fn write(s: &str) {
-    print!("{}", s);
+    print!("{s}");
 }
 
 pub fn writeln(s: &str) {
-    println!("{}", s);
+    println!("{s}");
 }
 
 pub fn write_colored(color: &str, style: &str, s: &str) {
@@ -41,8 +41,9 @@ pub fn write_colored(color: &str, style: &str, s: &str) {
         "hidden" => s.hidden(),
         "strikethrough" => s.strikethrough(),
         _ => s.normal(),
-    }.color(color);
-    print!("{}", colored);
+    }
+    .color(color);
+    print!("{colored}");
 }
 
 pub fn writeln_colored(color: &str, style: &str, s: &str) {
@@ -56,8 +57,9 @@ pub fn writeln_colored(color: &str, style: &str, s: &str) {
         "hidden" => s.hidden(),
         "strikethrough" => s.strikethrough(),
         _ => s.normal(),
-    }.color(color);
-    println!("{}", colored);
+    }
+    .color(color);
+    println!("{colored}");
 }
 
 pub fn module() -> Result<Module, ContextError> {

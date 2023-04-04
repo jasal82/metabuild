@@ -44,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build
-        if: matrix.os.container != 'rust:alpine3.16'
+        if: matrix.os.container != 'rust:alpine3.16' && matrix.os.container != null
         run: |
           apt-get update
           apt-get install -y gcc libssl-dev pkg-config

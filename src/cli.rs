@@ -14,14 +14,14 @@ pub enum Commands {
         #[arg(short, long)]
         username: Option<String>,
         #[arg(short, long)]
-        password: Option<String>
+        password: Option<String>,
     },
     Run {
         tasks: Vec<String>,
         #[arg(short, long)]
         file: Option<PathBuf>,
         #[arg(short, long, default_value = "false")]
-        warn: bool
+        warn: bool,
     },
     Update,
     Config {

@@ -1,11 +1,50 @@
-use std::fs::File;
-use std::io::Cursor;
+use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Arc;
 
-pub fn download_file(url: &str, file: &Path) -> Result<(), anyhow::Error> {
-    let response = reqwest::blocking::get(url)?;
-    let mut f = File::create(file)?;
-    let mut content = Cursor::new(response.bytes()?);
-    std::io::copy(&mut content, &mut f)?;
+pub fn download_file(
+    url: &str,
+    file: &Path,
+    headers: &HashMap<String, String>,
+) -> Result<(), anyhow::Error> {
+    let agent = ureq::builder()
+        .tls_config(Arc::new(crate::TLS_CONFIG.clone()))
+        .build();
+    let mut body = agent.get(url);
+    for (key, value) in headers {
+        body = body.set(key, value);
+    }
+    let res = body.call()?;
+    std::io::copy(&mut res.into_reader(), &mut std::fs::File::create(file)?)?;
+    Ok(())
+}
+
+pub fn upload_file(
+    url: &str,
+    file: &Path,
+    headers: &HashMap<String, String>,
+) -> Result<(), anyhow::Error> {
+    let agent = ureq::builder()
+        .tls_config(Arc::new(crate::TLS_CONFIG.clone()))
+        .build();
+    let mut body = agent.put(url);
+    for (key, value) in headers {
+        body = body.set(key, value);
+    }
+    let file = std::fs::File::open(file)?;
+    match body.send(file) {
+        Ok(res) => {
+            if res.status() != 201 {
+                println!(
+                    "Failed to upload file: {} {}",
+                    res.status(),
+                    res.status_text()
+                );
+            }
+        }
+        Err(e) => {
+            println!("Error: {e}");
+        }
+    }
     Ok(())
 }

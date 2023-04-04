@@ -1,6 +1,9 @@
-use rune::termcolor::{ColorChoice, StandardStream};
 use rune::ast::Span;
-use rune::{Context, compile::{CompileError, FileSourceLoader, Item, SourceLoader}, Diagnostics, Source, Sources, runtime::Value, Vm};
+use rune::termcolor::{ColorChoice, StandardStream};
+use rune::{
+    compile::{CompileError, FileSourceLoader, Item, SourceLoader},
+    Context, Diagnostics, Source, Sources, Vm,
+};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -8,13 +11,13 @@ mod api;
 
 #[derive(Default)]
 pub struct CustomSourceLoader {
-    file_loader: FileSourceLoader
+    file_loader: FileSourceLoader,
 }
 
 impl CustomSourceLoader {
     pub fn new() -> Self {
         Self {
-            file_loader: FileSourceLoader::new()
+            file_loader: FileSourceLoader::new(),
         }
     }
 }
@@ -34,7 +37,7 @@ impl SourceLoader for CustomSourceLoader {
     }
 }
 
-pub fn run_tasks(script_file: &Path, tasks: &Vec<String>, warn: bool) -> Result<(), anyhow::Error> {
+pub fn run_tasks(script_file: &Path, tasks: &[String], warn: bool) -> Result<(), anyhow::Error> {
     let mut context = Context::with_default_modules()?;
     context.install(&rune_modules::io::module(true)?)?;
     context.install(&rune_modules::json::module(true)?)?;
@@ -56,9 +59,9 @@ pub fn run_tasks(script_file: &Path, tasks: &Vec<String>, warn: bool) -> Result<
 
     let mut diagnostics = match warn {
         true => Diagnostics::new(),
-        false => Diagnostics::without_warnings()
+        false => Diagnostics::without_warnings(),
     };
-    
+
     let mut source_loader = CustomSourceLoader::new();
 
     let mut options = rune::Options::default();
@@ -79,12 +82,13 @@ pub fn run_tasks(script_file: &Path, tasks: &Vec<String>, warn: bool) -> Result<
     let unit = result?;
 
     let mut vm = Vm::new(Arc::new(context.runtime()), Arc::new(unit));
-    let mut execution = vm.execute(["main"], (tasks.iter().map(|t| t.to_owned().into()).collect::<Vec<String>>(),))?;
+    let mut execution = vm.execute(
+        ["main"],
+        (tasks.iter().map(|t| t.to_owned()).collect::<Vec<String>>(),),
+    )?;
     let result = execution.complete();
     let _errored = match result {
-        Ok(_result) => {
-            None
-        },
+        Ok(_result) => None,
         Err(error) => {
             let mut writer = StandardStream::stderr(ColorChoice::Always);
             error.emit(&mut writer, &sources)?;

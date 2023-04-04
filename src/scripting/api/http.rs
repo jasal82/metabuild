@@ -1,176 +1,139 @@
-use rune::{Any, Module, Value, ContextError};
-use rune::runtime::{Bytes, Protocol};
+use rune::runtime::Protocol;
+use rune::{Any, ContextError, Module};
 use std::fmt;
 use std::fmt::Write;
+use std::sync::Arc;
 
 /// Construct the `http` module.
 pub fn module() -> Result<Module, ContextError> {
     let mut module = Module::with_crate("http");
 
-    module.ty::<Client>()?;
+    module.ty::<Agent>()?;
+    module.ty::<Request>()?;
     module.ty::<Response>()?;
-    module.ty::<RequestBuilder>()?;
-    module.ty::<StatusCode>()?;
     module.ty::<Error>()?;
 
-    module.function(["Client", "new"], Client::new)?;
-    module.function(["get"], get)?;
-    module.function(["post"], post)?;
+    module.function(["Agent", "new"], Agent::new)?;
+    module.inst_fn("get", Agent::get)?;
+    module.inst_fn("put", Agent::put)?;
+    module.inst_fn("post", Agent::post)?;
+    module.inst_fn("delete", Agent::delete)?;
 
-    module.inst_fn("get", Client::get)?;
-    module.inst_fn("put", Client::put)?;
-    module.inst_fn("post", Client::post)?;
-    module.inst_fn("delete", Client::delete)?;
+    module.inst_fn("call", Request::call)?;
+    module.inst_fn("set", Request::set)?;
+    module.inst_fn("send_string", Request::send_string)?;
 
-    module.inst_fn("text", Response::text)?;
-    module.inst_fn("json", Response::json)?;
     module.inst_fn("status", Response::status)?;
-
-    module.inst_fn("send", RequestBuilder::send)?;
-    module.inst_fn("header", RequestBuilder::header)?;
-    module.inst_fn("body", RequestBuilder::body)?;
-    module.inst_fn("body_bytes", RequestBuilder::body_bytes)?;
+    module.inst_fn("status_text", Response::status_text)?;
+    module.inst_fn("into_string", Response::into_string)?;
+    module.inst_fn("into_file", Response::into_file)?;
 
     module.inst_fn(Protocol::STRING_DISPLAY, Error::display)?;
-    module.inst_fn(Protocol::STRING_DISPLAY, StatusCode::display)?;
     Ok(module)
 }
 
 #[derive(Debug, Any)]
-pub struct Error {
-    inner: reqwest::Error,
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(inner: reqwest::Error) -> Self {
-        Self { inner }
-    }
-}
-
-impl Error {
-    fn display(&self, buf: &mut String) -> fmt::Result {
-        write!(buf, "{}", self.inner)
-    }
+pub struct Agent {
+    client: ureq::Agent,
 }
 
 #[derive(Debug, Any)]
-struct Client {
-    client: reqwest::blocking::Client,
+pub struct Request {
+    request: ureq::Request,
 }
 
 #[derive(Debug, Any)]
 pub struct Response {
-    response: reqwest::blocking::Response,
+    response: ureq::Response,
 }
 
 #[derive(Debug, Any)]
-pub struct StatusCode {
-    inner: reqwest::StatusCode,
+pub struct Error {
+    error: ureq::Error,
 }
 
-impl StatusCode {
-    fn display(&self, buf: &mut String) -> fmt::Result {
-        write!(buf, "{}", self.inner)
+impl Agent {
+    pub fn new() -> Self {
+        Self {
+            client: ureq::builder()
+                .tls_config(Arc::new(crate::TLS_CONFIG.clone()))
+                .build(),
+        }
+    }
+
+    pub fn get(&self, url: &str) -> Request {
+        Request {
+            request: self.client.get(url),
+        }
+    }
+
+    pub fn put(&self, url: &str) -> Request {
+        Request {
+            request: self.client.put(url),
+        }
+    }
+
+    pub fn post(&self, url: &str) -> Request {
+        Request {
+            request: self.client.post(url),
+        }
+    }
+
+    pub fn delete(&self, url: &str) -> Request {
+        Request {
+            request: self.client.delete(url),
+        }
+    }
+}
+
+impl Request {
+    pub fn call(self) -> Result<Response, Error> {
+        Ok(Response {
+            response: self.request.call().map_err(|e| Error { error: e })?,
+        })
+    }
+
+    pub fn set(self, key: &str, value: &str) -> Self {
+        Request {
+            request: self.request.set(key, value),
+        }
+    }
+
+    pub fn send_string(self, body: &str) -> Result<Response, Error> {
+        Ok(Response {
+            response: self
+                .request
+                .send_string(body)
+                .map_err(|e| Error { error: e })?,
+        })
     }
 }
 
 impl Response {
-    fn text(self) -> Result<String, Error> {
-        let text = self.response.text()?;
-        Ok(text)
+    pub fn status(&self) -> u16 {
+        self.response.status()
     }
 
-    fn json(self) -> Result<Value, Error> {
-        let text = self.response.json()?;
-        Ok(text)
+    pub fn status_text(&self) -> String {
+        self.response.status_text().to_string()
     }
 
-    /// Get the status code of the response.
-    fn status(&self) -> StatusCode {
-        let inner = self.response.status();
-
-        StatusCode { inner }
-    }
-}
-
-#[derive(Debug, Any)]
-pub struct RequestBuilder {
-    request: reqwest::blocking::RequestBuilder,
-}
-
-impl RequestBuilder {
-    /// Send the request being built.
-    fn send(self) -> Result<Response, Error> {
-        println!("Calling send");
-        let response = self.request.send()?;
-        println!("Got response");
-        Ok(Response { response })
+    pub fn into_string(self) -> Result<String, Error> {
+        self.response
+            .into_string()
+            .map_err(|e| Error { error: e.into() })
     }
 
-    /// Modify a header in the request.
-    fn header(self, key: &str, value: &str) -> Self {
-        Self {
-            request: self.request.header(key, value),
-        }
-    }
-
-    fn body(self, body: &str) -> Result<Self, Error> {
-        Ok(Self {
-            request: self.request.body(body.to_owned()),
-        })
-    }
-
-    /// Set the request body from bytes.
-    fn body_bytes(self, bytes: Bytes) -> Result<Self, Error> {
-        let bytes = bytes.into_vec();
-
-        Ok(Self {
-            request: self.request.body(bytes),
-        })
+    pub fn into_file(self, file: &str) -> Result<(), Error> {
+        let mut file = std::fs::File::create(file).map_err(|e| Error { error: e.into() })?;
+        std::io::copy(&mut self.response.into_reader(), &mut file)
+            .map_err(|e| Error { error: e.into() })?;
+        Ok(())
     }
 }
 
-impl Client {
-    fn new() -> Self {
-        Self {
-            client: reqwest::blocking::Client::new(),
-        }
+impl Error {
+    pub fn display(&self, buf: &mut String) -> fmt::Result {
+        write!(buf, "{}", self.error)
     }
-
-    /// Construct a builder to GET the given URL.
-    fn get(&self, url: &str) -> Result<RequestBuilder, Error> {
-        let request = self.client.get(url);
-        Ok(RequestBuilder { request })
-    }
-
-    /// Construct a builder to PUT the given URL.
-    fn put(&self, url: &str) -> Result<RequestBuilder, Error> {
-        let request = self.client.put(url);
-        Ok(RequestBuilder { request })
-    }
-
-    /// Construct a builder to POST to the given URL.
-    fn post(&self, url: &str) -> Result<RequestBuilder, Error> {
-        let request = self.client.post(url);
-        Ok(RequestBuilder { request })
-    }
-
-    /// Construct a builder to DELETE the given URL.
-    fn delete(&self, url: &str) -> Result<RequestBuilder, Error> {
-        let request = self.client.delete(url);
-        Ok(RequestBuilder { request })
-    }
-}
-
-/// Shorthand for generating a get request.
-fn get(url: &str) -> Result<Response, Error> {
-    Ok(Response {
-        response: reqwest::blocking::get(url)?,
-    })
-}
-
-fn post(url: &str, b: &str) -> Result<Response, Error> {
-    Ok(Response {
-        response: reqwest::blocking::Client::new().post(url).body(b.to_owned()).send()?,
-    })
 }

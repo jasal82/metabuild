@@ -1,6 +1,6 @@
-use rune::{ContextError, Module};
 use rune::runtime::{Object, Value};
-use yaml_rust::{YamlLoader, Yaml, yaml::Hash};
+use rune::{ContextError, Module};
+use yaml_rust::{yaml::Hash, Yaml, YamlLoader};
 
 fn convert_yaml_to_rune(yaml: Yaml) -> Value {
     match yaml {

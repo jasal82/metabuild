@@ -16,7 +16,7 @@ struct MatchRune {
 
 #[derive(Any)]
 struct CapturesRune {
-    groups: Vec<Option<MatchRune>>
+    groups: Vec<Option<MatchRune>>,
 }
 
 impl RegexRune {
@@ -35,31 +35,26 @@ impl RegexRune {
     }
 
     pub fn find(&self, text: &str) -> Option<MatchRune> {
-        if let Some(m) = self.inner.find(text) {
-            Some(MatchRune {
+        self.inner.find(text).map(|m| MatchRune {
+            start: m.start(),
+            end: m.end(),
+            text: m.as_str().to_string(),
+        })
+    }
+
+    pub fn find_iter(&self, text: &str) -> Vec<MatchRune> {
+        self.inner
+            .find_iter(text)
+            .map(|m| MatchRune {
                 start: m.start(),
                 end: m.end(),
                 text: m.as_str().to_string(),
             })
-        } else {
-            None
-        }
-    }
-
-    pub fn find_iter(&self, text: &str) -> Vec<MatchRune> {
-        self.inner.find_iter(text).map(|m| MatchRune {
-            start: m.start(),
-            end: m.end(),
-            text: m.as_str().to_string(),
-        }).collect()
+            .collect()
     }
 
     pub fn captures(&self, text: &str) -> Option<CapturesRune> {
-        if let Some(c) = self.inner.captures(text) {
-            Some(CapturesRune::new(&c))
-        } else {
-            None
-        }
+        self.inner.captures(text).map(|c| CapturesRune::new(&c))
     }
 
     pub fn captures_iter(&self, text: &str) -> Vec<Option<CapturesRune>> {
@@ -101,7 +96,7 @@ impl CapturesRune {
     }
 
     pub fn get(&self, index: usize) -> Option<MatchRune> {
-        self.groups.get(index).unwrap().as_ref().map(|m| m.clone())
+        self.groups.get(index).unwrap().as_ref().cloned()
     }
 }
 

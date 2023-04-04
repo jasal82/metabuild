@@ -12,31 +12,31 @@ impl Client {
     }
 
     fn get(self, url) {
-        let res = http::Client::new().get(url)?.header("X-JFrog-Art-Api", self.token).send()?;
-        let body = res.text()?;
-        json::from_string(body)?
+        let req = http::Agent::new().get(url).set("X-JFrog-Art-Api", self.token);
+        let res = req.call()?;
+        json::from_string(res?.into_string()?)?
     }
 
-    fn put(self, url, data) {
-        let res = http::Client::new().put(url)?.header("X-JFrog-Art-Api", self.token);
-        if let Some(data) = data {
-            res.body(data);
-        }
-        let body = res.send()?.text()?;
-        json::from_string(body)?
+   fn put(self, url, data) {
+        let req = http::Agent::new().put(url).set("X-JFrog-Art-Api", self.token);
+        let res = match data {
+            Some(data) => req.send_string(data),
+            None => req.call(),
+        };
+        json::from_string(res?.into_string()?)?
     }
 
     fn post(self, url, data) {
-        let res = http::Client::new().post(url)?.header("X-JFrog-Art-Api", self.token);
-        if let Some(data) = data {
-            res.body(data);
-        }
-        let body = res.send()?.text()?;
-        json::from_string(body)?
+        let req = http::Agent::new().post(url).set("X-JFrog-Art-Api", self.token);
+        let res = match data {
+            Some(data) => req.send_string(data),
+            None => req.call(),
+        };
+        json::from_string(res?.into_string()?)?
     }
 
     fn delete(self, url) {
-        let res = http::Client::new().delete(url)?.header("X-JFrog-Art-Api", self.token).send()?;
+        http::Agent::new().delete(url).set("X-JFrog-Art-Api", self.token).call()?;
     }
 
     pub fn item_info(self, repo_key, item_path) {

@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install prerequisites
-        if: matrix.os.container != 'alpine:3.16' && matrix.os.host != 'windows-latest'
+        if: matrix.os.container != 'alpine:3.16' && matrix.os.container != null
         run: |
           apt-get update
           apt-get install -y gcc libssl-dev pkg-config curl

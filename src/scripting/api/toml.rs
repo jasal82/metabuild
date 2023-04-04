@@ -1,5 +1,5 @@
-use rune::{ContextError, Module};
 use rune::runtime::{Object, Value, Vec};
+use rune::{ContextError, Module};
 use toml::Table;
 
 fn convert_toml_to_rune(value: toml::Value) -> Value {
@@ -25,13 +25,13 @@ fn convert_array_to_vector(array: std::vec::Vec<toml::Value>) -> Value {
 fn convert_table_to_object(table: Table) -> Object {
     let mut map = Object::new();
     for (k, v) in table {
-        map.insert(k.into(), convert_toml_to_rune(v));
+        map.insert(k, convert_toml_to_rune(v));
     }
     map
 }
 
 pub fn from_file(file: &str) -> Result<Object, anyhow::Error> {
-    Ok(from_string(&std::fs::read_to_string(file)?)?)
+    from_string(&std::fs::read_to_string(file)?)
 }
 
 pub fn from_string(content: &str) -> Result<Object, anyhow::Error> {

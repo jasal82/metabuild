@@ -1,9 +1,9 @@
 use colored::{Color, ColoredString, Colorize};
-use rune::{Any, ContextError, Module};
 use rune::runtime::{Object, Protocol};
+use rune::{Any, ContextError, Module};
 use std::fmt;
 use std::fmt::Write;
-use tera::{Tera, Context};
+use tera::{Context, Tera};
 
 enum Source {
     File(String),
@@ -38,9 +38,7 @@ struct Painter {
 
 impl Painter {
     pub fn new(text: &str) -> Self {
-        Self {
-            text: text.into(),
-        }
+        Self { text: text.into() }
     }
 
     pub fn black(self) -> Painter {

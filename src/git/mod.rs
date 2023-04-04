@@ -1,7 +1,12 @@
-use git2::{Cred, FetchOptions, RemoteCallbacks, build::RepoBuilder, Repository};
+use git2::{build::RepoBuilder, Cred, FetchOptions, RemoteCallbacks, Repository};
 use std::path::Path;
 
-pub fn clone(url: &str, dst: &Path, username: &Option<String>, password: &Option<String>) -> Result<Repository, Box<dyn std::error::Error>> {
+pub fn clone(
+    url: &str,
+    dst: &Path,
+    username: &Option<String>,
+    password: &Option<String>,
+) -> Result<Repository, Box<dyn std::error::Error>> {
     let mut repo_builder = RepoBuilder::new();
     if username.is_some() && password.is_some() {
         let mut callbacks = RemoteCallbacks::new();
@@ -12,7 +17,7 @@ pub fn clone(url: &str, dst: &Path, username: &Option<String>, password: &Option
         fetch_options.remote_callbacks(callbacks);
         repo_builder.fetch_options(fetch_options);
     }
-    Ok(repo_builder.clone(url, &dst)?)
+    Ok(repo_builder.clone(url, dst)?)
 }
 
 pub fn checkout_ref(repo: &Repository, refname: &str) -> Result<(), Box<dyn std::error::Error>> {

@@ -118,20 +118,22 @@ fn net_examples() {
     // Send a dummy GET request and display the status code and response
     step("Sending an HTTP GET request");
     println!("GET https://reqres.in/api/users?page=2");
-    let response = http::get("https://reqres.in/api/users?page=2")?;
+    let agent = http::Agent::new().get("https://reqres.in/api/users?page=2");
+    let response = agent.call()?;
     step("Printing the status");
     println!("Status: {}", response.status());
     step("Printing the payload");
-    println!("Payload: {}", response.text()?);
+    println!("Payload: {}", response.into_string()?);
     
     // Send a dummy POST request and display the status code and response
     step("Sending an HTTP POST request");
     println!("POST https://reqres.in/api/login");
-    let response = http::post("https://reqres.in/api/users", "{\"name\": \"johannes\", \"job\": \"architect\"}")?;
+    let agent = http::Agent::new().post("https://reqres.in/api/users");
+    let response = agent.send_string("{\"name\": \"johannes\", \"job\": \"architect\"}")?;
     step("Printing the status");
     println!("Status: {}", response.status());
     step("Printing the payload");
-    println!("Payload: {}", response.text()?);
+    println!("Payload: {}", response.into_string()?);
 }
 
 pub fn main(tasks) {
