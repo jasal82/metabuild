@@ -66,9 +66,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args:
-            - --release
-            - --locked
+          args: --release --locked
 
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
