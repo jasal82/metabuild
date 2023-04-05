@@ -1,6 +1,6 @@
 use clap::{CommandFactory, Parser};
 use std::panic;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use toml::Table;
 
 mod cli;
@@ -46,8 +46,8 @@ fn print_header() {
     println!();
 }
 
-fn parse_config() -> toml::Table {
-    let content = std::fs::read_to_string("resources/dependencies.toml").unwrap();
+fn parse_config(file: &Path) -> toml::Table {
+    let content = std::fs::read_to_string(file).unwrap();
     content.parse::<Table>().unwrap()
 }
 
@@ -63,17 +63,25 @@ pub fn main() -> Result<(), anyhow::Error> {
     print_header();
 
     panic::set_hook(Box::new(|panic_info| {
-        let message = panic_info.payload().downcast_ref::<&str>().unwrap();
-        logging::error(*message);
+        logging::error(panic_info.to_string());
     }));
 
     let cli = Cli::parse();
     let mut config = commands::config::Config::new();
 
     match &cli.command {
-        Commands::Install { username, password } => {
-            let dependency_config = parse_config();
-            commands::install::install_script_modules(&dependency_config, username, password);
+        Commands::Install {
+            file,
+            username,
+            password,
+        } => {
+            let dependency_config =
+                parse_config(file.as_ref().unwrap_or(&PathBuf::from("dependencies.toml")));
+            commands::install::install_script_modules(
+                &dependency_config,
+                username.as_deref(),
+                password.as_deref(),
+            );
             commands::install::install_executables(&dependency_config);
             Ok(())
         }

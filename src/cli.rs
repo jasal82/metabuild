@@ -12,6 +12,8 @@ pub struct Cli {
 pub enum Commands {
     Install {
         #[arg(short, long)]
+        file: Option<PathBuf>,
+        #[arg(short, long)]
         username: Option<String>,
         #[arg(short, long)]
         password: Option<String>,
