@@ -16,12 +16,13 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - { name: linux-debian-buster, host: ubuntu-22.04, container: "debian:buster-slim" }
-          - { name: linux-debian-bullseye, host: ubuntu-22.04, container: "debian:bullseye-slim" }
-          - { name: linux-alpine-3.16, host: ubuntu-22.04, container: "alpine:3.16" }
-          - { name: linux-ubuntu-2204, host: ubuntu-22.04, container: null }
-          - { name: linux-ubuntu-2004, host: ubuntu-20.04, container: null }
-          - { name: windows, host: windows-latest, container: null }
+          - { name: linux-debian-buster,   host: ubuntu-latest,  container: "debian:buster-slim",   target: "x86_64-unknown-linux-gnu" }
+          - { name: linux-debian-bullseye, host: ubuntu-latest,  container: "debian:bullseye-slim", target: "x86_64-unknown-linux-gnu" }
+          - { name: linux-alpine-3.16,     host: ubuntu-latest,  container: "alpine:3.16",          target: "x86_64-unknown-linux-gnu" }
+          - { name: linux-ubuntu-2204,     host: ubuntu-latest,  container: "ubuntu:22.04",         target: "x86_64-unknown-linux-gnu" }
+          - { name: linux-ubuntu-2004,     host: ubuntu-latest,  container: "ubuntu:20.04",         target: "x86_64-unknown-linux-gnu" }
+          - { name: linux-musl,            host: ubuntu-latest,  container: "alpine:3.16",          target: "x86_64-unknown-linux-musl" }
+          - { name: windows,               host: windows-latest, container: null }
         toolchain: [nightly, stable]
 
     steps:
@@ -38,7 +39,7 @@ jobs:
         if: matrix.os.container == 'alpine:3.16'
         run: |
           apk update
-          apk add build-base openssl-dev pkgconfig curl
+          apk add build-base curl
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
