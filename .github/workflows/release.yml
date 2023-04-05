@@ -42,7 +42,7 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/release/mb
+          file: target/x86_64-unknown-linux-musl/release/mb
           asset_name: mb-${{ github.ref_name }}-x86_64-unknown-linux-musl
           tag: ${{ github.ref }}
   
@@ -69,7 +69,7 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: target/release/mb.exe
+        file: target/x86_64-pc-windows-msvc/release/mb.exe
         asset_name: mb-${{ github.ref_name }}-x86_64-pc-windows-msvc.exe
         tag: ${{ github.ref }}
     - name: Upload Windows installer to release
