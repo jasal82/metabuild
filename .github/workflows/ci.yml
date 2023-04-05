@@ -33,7 +33,7 @@ jobs:
         if: matrix.os.container != 'alpine:3.16' && matrix.os.container != null
         run: |
           apt-get update
-          apt-get install -y gcc perl pkg-config curl
+          apt-get install -y gcc make perl curl
 
       - name: Install prerequisites
         if: matrix.os.container == 'alpine:3.16'
