@@ -22,7 +22,7 @@ path-absolutize = "3.0.14"
 path-slash = "0.2.1"
 regex = "1"
 rune = "0.12.1"
-rune-modules = { version = "0.12.1", features = ["io", "json"] }
+rune-modules = { version = "0.12.1", features = ["json"] }
 rustls = "0.20.8"
 rustls-native-certs = "*"
 self_update = "0.36"

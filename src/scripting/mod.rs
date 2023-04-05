@@ -39,7 +39,6 @@ impl SourceLoader for CustomSourceLoader {
 
 pub fn run_tasks(script_file: &Path, tasks: &[String], warn: bool) -> Result<(), anyhow::Error> {
     let mut context = Context::with_default_modules()?;
-    context.install(&rune_modules::io::module(true)?)?;
     context.install(&rune_modules::json::module(true)?)?;
     context.install(&api::arch::module()?)?;
     context.install(&api::cmd::module()?)?;

@@ -59,7 +59,7 @@ fn install_os_executables(config: &toml::Table) {
 }
 
 #[cfg(not(windows))]
-fn install_os_executables(_config: &toml::Table) {
+fn install_os_executables(config: &toml::Table) {
     if config["executables"].is_table()
         && config["executables"]
             .as_table()
