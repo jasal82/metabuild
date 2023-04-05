@@ -22,7 +22,7 @@ jobs:
       - name: Install prerequisites
         run: |
           apk update
-          apk add build-base curl
+          apk add build-base perl curl
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
