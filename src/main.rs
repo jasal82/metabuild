@@ -88,7 +88,7 @@ pub fn main() -> Result<(), anyhow::Error> {
             password,
         } => {
             let dependency_config =
-                parse_config(file.as_ref().unwrap_or(&PathBuf::from("dependencies.toml")));
+                parse_config(file.as_ref().unwrap_or(&PathBuf::from("mb.toml")));
             commands::install::install_script_modules(
                 &dependency_config,
                 username.as_deref(),
@@ -99,7 +99,7 @@ pub fn main() -> Result<(), anyhow::Error> {
         }
         Commands::Run { tasks, file, warn } => {
             if let Err(e) = scripting::run_tasks(
-                file.as_ref().unwrap_or(&PathBuf::from("tasks.rn")),
+                file.as_ref().unwrap_or(&PathBuf::from("mb.rn")),
                 tasks,
                 *warn,
             ) {
