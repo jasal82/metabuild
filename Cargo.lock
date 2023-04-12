@@ -1098,6 +1098,7 @@ dependencies = [
  "rustls",
  "rustls-native-certs",
  "self_update",
+ "semver",
  "serde",
  "tar",
  "tempfile",
