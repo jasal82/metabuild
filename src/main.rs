@@ -63,12 +63,16 @@ fn to_scope(global: bool) -> commands::config::ConfigScope {
 pub fn main() -> Result<(), anyhow::Error> {
     // Check if metabuild version is pinned
     if let Some(pinned_version) = pinning::pinned_version() {
-        if pinning::running_on_buildserver() {
-            logging::error("Running on buildserver, but pinned version is set. Aborting.");
-            println!("Please use the appropriate Docker image for this build.");
-            std::process::exit(1);
-        } else {
-            pinning::download_and_run(&pinned_version);
+        if let Ok(current_version) = semver::Version::parse(VERSION) {
+            if current_version != pinned_version {
+                if pinning::running_on_buildserver() {
+                    logging::error("Running on buildserver, but pinned version is set. Aborting.");
+                    println!("Please use the appropriate Docker image for this build.");
+                    std::process::exit(1);
+                } else {
+                    pinning::download_and_run(&pinned_version);
+                }
+            }
         }
     }
 
