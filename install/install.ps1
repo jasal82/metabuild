@@ -26,7 +26,7 @@ Invoke-WebRequest -Uri $MetabuildDownloadUrl -OutFile $file
 Write-Host "Setting PATH"
 [Environment]::SetEnvironmentVariable(
     "Path",
-    [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::Machine) + ";$MetabuildInstallDir",
+    [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User) + ";$MetabuildInstallDir",
     [EnvironmentVariableTarget]::User)
 
 Write-Host "Done"
