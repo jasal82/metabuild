@@ -110,6 +110,12 @@ pub fn absolute(path: &str) -> std::io::Result<String> {
         .map(|p| p.to_str().unwrap().to_string())
 }
 
+pub fn which(executable: &str) -> std::io::Result<String> {
+    which::which(executable)
+        .map(|p| p.to_str().unwrap().to_string())
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::NotFound, e))
+}
+
 #[derive(Any)]
 struct TempDir {
     dir: tempfile::TempDir,
@@ -302,6 +308,7 @@ pub fn module() -> Result<Module, ContextError> {
     module.function(["copy_dir"], copy_dir)?;
     module.function(["copy_glob"], copy_glob)?;
     module.function(["absolute"], absolute)?;
+    module.function(["which"], which)?;
     module.ty::<TempDir>()?;
     module.function(["TempDir", "new"], TempDir::new)?;
     module.inst_fn("path", TempDir::path)?;

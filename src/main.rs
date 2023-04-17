@@ -48,8 +48,8 @@ fn print_header() {
 }
 
 fn parse_config(file: &Path) -> toml::Table {
-    let content = std::fs::read_to_string(file).unwrap();
-    content.parse::<Table>().unwrap()
+    let content = std::fs::read_to_string(file).expect(format!("Could not read config file '{}'", file.display()).as_str());
+    content.parse::<Table>().expect(format!("Could not parse config file '{}'", file.display()).as_str())
 }
 
 fn to_scope(global: bool) -> commands::config::ConfigScope {

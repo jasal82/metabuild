@@ -6,6 +6,10 @@ pub fn is_windows() -> bool {
     cfg!(target_os = "windows")
 }
 
+pub fn is_mingw() -> bool {
+    cfg!(target_os = "windows") && std::env::vars().any(|(k, _)| k == "MSYSTEM")
+}
+
 pub fn is_linux() -> bool {
     cfg!(target_os = "linux")
 }

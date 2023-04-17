@@ -87,7 +87,12 @@ pub fn run_tasks(script_file: &Path, tasks: &[String], warn: bool) -> Result<(),
     )?;
     let result = execution.complete();
     let _errored = match result {
-        Ok(_result) => None,
+        Ok(value) => {
+            if value.into_unit().is_err() {
+                crate::logging::warning("Function main() returned a non-unit value. All errors must be handled in the script.");
+            }
+            None
+        },
         Err(error) => {
             let mut writer = StandardStream::stderr(ColorChoice::Always);
             error.emit(&mut writer, &sources)?;
