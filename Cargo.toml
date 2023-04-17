@@ -1,6 +1,6 @@
 [package]
 name = "mb"
-version = "0.3.3"
+version = "0.3.4"
 description = "Build automation tool"
 authors = ["Johannes Asal"]
 license = "MIT"
@@ -9,6 +9,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 clap = { version = "4.1.6", features = ["derive"] }
+color-eyre = "0.6"
 colored = "2"
 dirs = "4"
 dunce = "1"
@@ -33,6 +34,7 @@ tempfile = "3"
 tera = "1"
 toml = "0.7"
 ureq = { version = "2", features = ["native-certs", "gzip"] }
+which = "4.4"
 yaml-rust = "0.4"
 
 [dev-dependencies]
