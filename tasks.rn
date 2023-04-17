@@ -81,7 +81,7 @@ fn python_examples() {
         // disabled so that we can see potential output
         step("Running python interpreter");
         venv.quiet(false);
-        let exitcode = venv.run(["python", "-c", "import scipy"]);
+        let exitcode = venv.run([venv.get_interpreter(), "-c", "import scipy"]);
         if exitcode == 0 {
             println!("Success");
         }
