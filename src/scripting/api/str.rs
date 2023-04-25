@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose, Engine as _, DecodeError};
 use colored::{Color, ColoredString, Colorize};
 use rune::runtime::{Object, Protocol};
 use rune::{Any, ContextError, Module};
@@ -29,6 +30,10 @@ pub fn template_file(tpl_file: &str, context: Object) -> String {
 
 pub fn template(tpl: &str, context: Object) -> String {
     template_internal(Source::Template(tpl.to_string()), context)
+}
+
+pub fn encode_base64(data: &str) -> String {
+    general_purpose::STANDARD.encode(data)
 }
 
 #[derive(Any)]
@@ -302,6 +307,7 @@ pub fn module() -> Result<Module, ContextError> {
     let mut module = Module::with_crate("str");
     module.function(["template_file"], template_file)?;
     module.function(["template"], template)?;
+    module.function(["encode_base64"], encode_base64)?;
     module.ty::<Painter>()?;
     module.function(["paint"], Painter::new)?;
     module.inst_fn("black", Painter::black)?;
