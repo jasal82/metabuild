@@ -1,5 +1,6 @@
 pub mod arch;
 pub mod cmd;
+pub mod docker;
 pub mod fs;
 pub mod git;
 pub mod http;

@@ -42,6 +42,7 @@ pub fn run_tasks(script_file: &Path, tasks: &[String], warn: bool) -> Result<(),
     context.install(&rune_modules::json::module(true)?)?;
     context.install(&api::arch::module()?)?;
     context.install(&api::cmd::module()?)?;
+    context.install(&api::docker::module()?)?;
     context.install(&api::fs::module()?)?;
     context.install(&api::git::module()?)?;
     context.install(&api::http::module()?)?;

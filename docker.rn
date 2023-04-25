@@ -1,0 +1,10 @@
+mod core;
+
+fn fails() {
+    Err("This failed")
+}
+
+pub fn main(tasks) {
+    let docker = docker::Docker::new("alpine:3.16")?;
+    docker.send("echo Hello world!");
+}
