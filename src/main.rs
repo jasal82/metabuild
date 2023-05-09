@@ -101,10 +101,11 @@ pub fn main() -> Result<(), anyhow::Error> {
             commands::install::install_executables(&dependency_config);
             Ok(())
         }
-        Commands::Run { tasks, file, warn } => {
+        Commands::Run { task, args, file, warn } => {
             if let Err(e) = scripting::run_tasks(
                 file.as_ref().unwrap_or(&PathBuf::from("mb.rn")),
-                tasks,
+                task,
+                args,
                 *warn,
             ) {
                 Cli::command().print_help().unwrap();

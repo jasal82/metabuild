@@ -30,6 +30,7 @@ rustls-native-certs = "*"
 self_update = "0.36"
 semver = "1"
 serde = { version = "1", features = ["derive"] }
+shell-words = "1"
 tar = "0.4"
 tempfile = "3"
 tera = "1"
@@ -37,6 +38,7 @@ toml = "0.7"
 ureq = { version = "2", features = ["native-certs", "gzip"] }
 which = "4.4"
 yaml-rust = "0.4"
+zip = { version = "0.6", features = ["deflate"] }
 
 [dev-dependencies]
 futures-executor = "0.3"

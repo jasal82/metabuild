@@ -65,10 +65,15 @@ mod internal {
     }
 }
 
-enum PipeRouting {
+#[derive(Any, PartialEq, Eq)]
+enum Routing {
+    #[rune(constructor)]
     Piped,
+    #[rune(constructor)]
     Inherit,
+    #[rune(constructor)]
     Null,
+    #[rune(constructor)]
     Unspecified,
 }
 
@@ -80,8 +85,29 @@ struct Cmd {
     env_clear: bool,
     current_dir: Option<String>,
     shell: bool,
-    stdout: PipeRouting,
-    stderr: PipeRouting,
+    stdout: Routing,
+    stderr: Routing,
+}
+
+#[derive(Any)]
+struct Output {
+    status: i64,
+    stdout: String,
+    stderr: String,
+}
+
+impl Output {
+    pub fn status(&self) -> i64 {
+        self.status
+    }
+
+    pub fn stdout(&self) -> String {
+        self.stdout.clone()
+    }
+
+    pub fn stderr(&self) -> String {
+        self.stderr.clone()
+    }
 }
 
 impl Cmd {
@@ -93,74 +119,72 @@ impl Cmd {
             env_clear: false,
             current_dir: None,
             shell: false,
-            stdout: PipeRouting::Unspecified,
-            stderr: PipeRouting::Unspecified,
+            stdout: Routing::Unspecified,
+            stderr: Routing::Unspecified,
         }
     }
 
-    pub fn arg(&mut self, arg: &str) {
+    pub fn arg(mut self, arg: &str) -> Cmd {
         self.args.push(arg.into());
+        self
     }
 
-    pub fn args(&mut self, args: Vec<String>) {
+    pub fn args(mut self, args: Vec<String>) -> Cmd {
         for arg in args {
             self.args.push(arg);
         }
+        self
     }
 
-    pub fn current_dir(&mut self, dir: &str) {
+    pub fn current_dir(mut self, dir: &str) -> Cmd {
         self.current_dir = Some(dir.into());
+        self
     }
 
-    pub fn env(&mut self, key: &str, value: &str) {
+    pub fn env(mut self, key: &str, value: &str) -> Cmd {
         self.envs.push((key.into(), value.into()));
+        self
     }
 
-    pub fn envs(&mut self, envs: Object) {
+    pub fn envs(mut self, envs: Object) -> Cmd {
         for (key, value) in envs {
             self.envs.push((
                 key.to_string(),
                 value.into_string().unwrap().take().unwrap(),
             ));
         }
+        self
     }
 
-    pub fn env_clear(&mut self) {
+    pub fn env_clear(mut self) -> Cmd {
         self.env_clear = true;
+        self
     }
 
-    pub fn env_remove(&mut self, key: &str) {
+    pub fn env_remove(mut self, key: &str) -> Cmd {
         self.env_remove.push(key.into());
+        self
     }
 
-    pub fn shell(&mut self) {
+    pub fn shell(mut self) -> Cmd {
         self.shell = true;
+        self
     }
 
-    pub fn stdout(&mut self, stdout: &str) {
-        match stdout {
-            "pipe" => self.stdout = PipeRouting::Piped,
-            "inherit" => self.stdout = PipeRouting::Inherit,
-            "null" => self.stdout = PipeRouting::Null,
-            "unspecified" => self.stdout = PipeRouting::Unspecified,
-            _ => panic!("Invalid stdout routing: {stdout}"),
-        }
+    pub fn stdout(mut self, routing: Routing) -> Cmd {
+        self.stdout = routing;
+        self
     }
 
-    pub fn stderr(&mut self, stderr: &str) {
-        match stderr {
-            "pipe" => self.stderr = PipeRouting::Piped,
-            "inherit" => self.stderr = PipeRouting::Inherit,
-            "null" => self.stderr = PipeRouting::Null,
-            "unspecified" => self.stderr = PipeRouting::Unspecified,
-            _ => panic!("Invalid stderr routing: {stderr}"),
-        }
+    pub fn stderr(mut self, routing: Routing) -> Cmd {
+        self.stderr = routing;
+        self
     }
 
     fn build_cmd(&mut self) -> Command {
         let mut cmd = match self.shell {
             true => {
-                let mut cmd = internal::new_shell_command();
+                let mut cmd: Command = internal::new_shell_command();
                 internal::add_shell_arguments(&mut cmd, &self.args);
                 cmd
             }
@@ -189,58 +213,65 @@ impl Cmd {
         }
 
         match self.stdout {
-            PipeRouting::Piped => {
+            Routing::Piped => {
                 cmd.stdout(Stdio::piped());
             }
-            PipeRouting::Inherit => {
+            Routing::Inherit => {
                 cmd.stdout(Stdio::inherit());
             }
-            PipeRouting::Null => {
+            Routing::Null => {
                 cmd.stdout(Stdio::null());
             }
-            PipeRouting::Unspecified => {}
+            Routing::Unspecified => {}
         };
 
         match self.stderr {
-            PipeRouting::Piped => {
+            Routing::Piped => {
                 cmd.stderr(Stdio::piped());
             }
-            PipeRouting::Inherit => {
+            Routing::Inherit => {
                 cmd.stderr(Stdio::inherit());
             }
-            PipeRouting::Null => {
+            Routing::Null => {
                 cmd.stderr(Stdio::null());
             }
-            PipeRouting::Unspecified => {}
+            Routing::Unspecified => {}
         };
 
         cmd
     }
 
-    pub fn execute(&mut self) -> i64 {
+    pub fn execute(&mut self) -> Result<Output, anyhow::Error> {
         let mut cmd = self.build_cmd();
-        let exitcode = cmd
-            .status()
-            .unwrap_or_else(|_| panic!("Failed to execute command: {:?}", self.args))
-            .code()
-            .unwrap_or(1);
-        exitcode as i64
-    }
-
-    pub fn output(&mut self) -> String {
-        let mut cmd = self.build_cmd();
-        cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
         let output = cmd
             .output()
             .unwrap_or_else(|_| panic!("Failed to execute command: {:?}", self.args));
-        String::from_utf8(output.stdout).unwrap()
+        Ok(Output {
+            status: output.status.code().unwrap() as i64,
+            stdout: String::from_utf8(output.stdout).unwrap(),
+            stderr: String::from_utf8(output.stderr).unwrap(),
+        })
     }
+}
+
+pub fn split(command: &str) -> Result<Vec<String>, anyhow::Error> {
+    shell_words::split(command).map_err(|e| e.into())
+}
+
+pub fn join(args: Vec<String>) -> String {
+    shell_words::join(args)
 }
 
 pub fn module() -> Result<Module, ContextError> {
     let mut module = Module::with_crate("cmd");
+    module.function(["split"], split)?;
+    module.function(["join"], join)?;
     module.ty::<Cmd>()?;
+    module.ty::<Routing>()?;
+    module.ty::<Output>()?;
+    module.inst_fn("status", Output::status)?;
+    module.inst_fn("stdout", Output::stdout)?;
+    module.inst_fn("stderr", Output::stderr)?;
     module.function(["Command", "new"], Cmd::new)?;
     module.inst_fn("arg", Cmd::arg)?;
     module.inst_fn("args", Cmd::args)?;
@@ -253,7 +284,6 @@ pub fn module() -> Result<Module, ContextError> {
     module.inst_fn("stdout", Cmd::stdout)?;
     module.inst_fn("stderr", Cmd::stderr)?;
     module.inst_fn("execute", Cmd::execute)?;
-    module.inst_fn("output", Cmd::output)?;
     Ok(module)
 }
 
@@ -263,12 +293,12 @@ mod tests {
 
     #[test]
     fn test_cmd() {
-        let mut cmd = Cmd::new("echo");
-        cmd.arg("Hello World");
-        cmd.shell();
+        let mut cmd = Cmd::new("echo")
+            .arg("Hello World")
+            .shell();
         #[cfg(target_os = "windows")]
-        assert_eq!(cmd.output(), "Hello World\r\n");
+        assert_eq!(cmd.execute().unwrap().stdout(), "Hello World\r\n");
         #[cfg(target_os = "linux")]
-        assert_eq!(cmd.output(), "Hello World\n");
+        assert_eq!(cmd.execute().unwrap().stdout(), "Hello World\n");
     }
 }

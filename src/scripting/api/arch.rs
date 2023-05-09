@@ -1,8 +1,71 @@
 use flate2::{read::GzDecoder, write::GzEncoder};
-use rune::{ContextError, Module};
+use rune::{Any, ContextError, Module};
 use std::fs::File;
 use std::path::Path;
-use tar::Archive;
+use tar::{Archive, Builder};
+use zip::ZipWriter;
+
+#[derive(Any)]
+struct TarGz {
+    inner: Builder<GzEncoder<File>>,
+}
+
+impl TarGz {
+    pub fn create(file: &str) -> Result<Self, anyhow::Error> {
+        let f = File::create(file)?;
+        let enc = GzEncoder::new(f, flate2::Compression::default());
+        Ok(Self {
+            inner: Builder::new(enc),
+        })
+    }
+
+    pub fn append_file(&mut self, arch_path: &str, file: &str) -> Result<(), anyhow::Error> {
+        let mut f = File::open(file)?;
+        self.inner.append_file(arch_path, &mut f).map_err(|e| e.into())
+    }
+
+    pub fn append_dir_all(&mut self, arch_path: &str, path: &str) -> Result<(), anyhow::Error> {
+        self.inner.append_dir_all(arch_path, path).map_err(|e| e.into())
+    }
+}
+
+#[derive(Any)]
+struct Zip {
+    inner: ZipWriter<File>
+}
+
+impl Zip {
+    pub fn create(file: &str) -> Result<Self, anyhow::Error> {
+        let f = File::create(file)?;
+        Ok(Self {
+            inner: ZipWriter::new(f),
+        })
+    }
+
+    pub fn append_file(&mut self, arch_path: &str, file: &str) -> Result<(), anyhow::Error> {
+        let mut f = File::open(file)?;
+        self.inner.start_file(arch_path, Default::default())?;
+        std::io::copy(&mut f, &mut self.inner)?;
+        Ok(())
+    }
+
+    pub fn append_dir_all(&mut self, arch_path: &str, path: &str) -> Result<(), anyhow::Error> {
+        for entry in std::fs::read_dir(path)? {
+            let entry = entry?;
+            let path = entry.path();
+            let arch_path = match arch_path {
+                "." | "" => path.file_name().unwrap().to_str().unwrap().to_string(),
+                _ => format!("{}/{}", arch_path, path.file_name().unwrap().to_str().unwrap()),
+            };
+            if path.is_dir() {
+                self.append_dir_all(&arch_path, path.to_str().unwrap())?;
+            } else {
+                self.append_file(&arch_path, path.to_str().unwrap())?;
+            }
+        }
+        Ok(())
+    }
+}
 
 pub fn extract(file: &str, dst: &str) -> std::io::Result<()> {
     let tar_gz = File::open(file)?;
@@ -25,6 +88,14 @@ pub fn create(file: &str, dir: &str) -> std::io::Result<()> {
 
 pub fn module() -> Result<Module, ContextError> {
     let mut module = Module::with_crate("arch");
+    module.ty::<TarGz>()?;
+    module.function(["TarGz", "create"], TarGz::create)?;
+    module.inst_fn("append_file", TarGz::append_file)?;
+    module.inst_fn("append_dir_all", TarGz::append_dir_all)?;
+    module.ty::<Zip>()?;
+    module.function(["Zip", "create"], Zip::create)?;
+    module.inst_fn("append_file", Zip::append_file)?;
+    module.inst_fn("append_dir_all", Zip::append_dir_all)?;
     module.function(["extract"], extract)?;
     module.function(["create"], create)?;
     Ok(module)

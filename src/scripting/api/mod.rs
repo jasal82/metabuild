@@ -3,7 +3,6 @@ pub mod cmd;
 pub mod fs;
 pub mod git;
 pub mod http;
-pub mod metabuild;
 pub mod net;
 pub mod re;
 pub mod str;
