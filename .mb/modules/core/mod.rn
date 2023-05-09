@@ -4,10 +4,7 @@ use regex::Regex;
 pub mod path {
 
     pub fn join(p1, p2) {
-        let sep = "/";
-        if sys::is_windows() {
-            sep = "\\";
-        }
+        let sep = super::path_separator();
         if p1.ends_with(sep) {
             return p1 + p2;
         } else {
@@ -33,73 +30,39 @@ pub mod string {
 
 }
 
-pub fn run(cmd, args) {
-    let command = Command::new(cmd);
-    command.args(args);
-    command.shell();
-    command.output()
+pub fn run(command, args) {
+    let command = Command::new(command).args(args);
+    command.execute()
+}
+
+pub fn shell(command) {
+    let args = command.split(" ").collect::<Vec>();
+    let command = Command::new(args[0])
+        .args(args.iter().skip(1).collect::<Vec>())
+        .shell();
+    command.execute()
+}
+
+pub fn path_separator() {
+    if sys::is_windows() {
+        "\\"
+    } else {
+        "/"
+    }
 }
 
 pub fn path_variable() {
-    if sys::is_windows() {
-        "Path"
-    } else {
+    if sys::env().contains_key("PATH") {
         "PATH"
-    }
-}
-
-pub fn is_in_path(program) {
-    let paths = ();
-    if sys::is_windows() {
-        paths = sys::env()["Path"].split(";");
-        program = program + ".exe";
     } else {
-        paths = sys::env()["PATH"].split(":");
-    }
-    
-    for p in paths {
-        if fs::is_file(path::join(p, program)) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-// Deprecated. Use builtin str::paint() now in combination with println!().
-fn paint(s) {
-    let colored = Regex::new("<(\\w+)(?:,(\\w+))?\\|(.*?)>");
-    let captures = colored.captures_iter(s);
-    let last = 0;
-    for cap in captures {
-        if let Some(c) = cap {
-            let full_start = c.get(0).unwrap().start();
-            let full_end = c.get(0).unwrap().end();
-            let color = c.get(1).unwrap().as_str();
-            let style = None;
-            let content = c.get(3).unwrap().as_str();
-            if c.get(2).is_some() {
-                style = Some(c.get(2).unwrap().as_str());
-            }
-            if full_start > last {
-                let text = s[last..full_start];
-                sys::write(text);
-            }
-            if style.is_some() {
-                sys::write_colored(color, style.unwrap(), content);
-            } else {
-                sys::write_colored(color, "normal", content);
-            }
-            last = full_end;
-        }
-    }
-    if last != s.len() {
-        let text = s[last..s.len()];
-        sys::write(text);
+        "Path"
     }
 }
 
-// Deprecated. Use builtin str::paint() now in combination with println!().
-fn paintln(s) {
-    paint(s + "\n");
+pub fn path_variable_separator() {
+    if sys::is_windows() {
+        ";"
+    } else {
+        ":"
+    }
 }

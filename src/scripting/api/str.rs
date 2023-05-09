@@ -2,6 +2,7 @@ use base64::{engine::general_purpose, Engine as _, DecodeError};
 use colored::{Color, ColoredString, Colorize};
 use rune::runtime::{Object, Protocol};
 use rune::{Any, ContextError, Module};
+use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Write;
 use tera::{Context, Tera};
@@ -11,24 +12,24 @@ enum Source {
     Template(String),
 }
 
-fn template_internal(tpl: Source, context: Object) -> String {
+fn template_internal(tpl: Source, context: HashMap<String, String>) -> Result<String, anyhow::Error> {
     let mut tera = Tera::default();
     match tpl {
-        Source::File(file) => tera.add_template_file(file, Some("template")).unwrap(),
-        Source::Template(tpl) => tera.add_raw_template("template", &tpl).unwrap(),
+        Source::File(file) => tera.add_template_file(file, Some("template"))?,
+        Source::Template(tpl) => tera.add_raw_template("template", tpl.as_str())?,
     }
     let mut tera_context = Context::new();
     for (k, v) in context {
-        tera_context.insert(k, v.into_string().unwrap().borrow_ref().unwrap().as_str());
+        tera_context.insert(k, &v);
     }
-    tera.render("template", &tera_context).unwrap()
+    tera.render("template", &tera_context).map_err(|e| e.into())
 }
 
-pub fn template_file(tpl_file: &str, context: Object) -> String {
+pub fn template_file(tpl_file: &str, context: HashMap<String, String>) -> Result<String, anyhow::Error> {
     template_internal(Source::File(tpl_file.to_string()), context)
 }
 
-pub fn template(tpl: &str, context: Object) -> String {
+pub fn template(tpl: &str, context: HashMap<String, String>) -> Result<String, anyhow::Error> {
     template_internal(Source::Template(tpl.to_string()), context)
 }
 
@@ -354,4 +355,17 @@ pub fn module() -> Result<Module, ContextError> {
     module.inst_fn("strikethrough", Painter::strikethrough)?;
     module.inst_fn(Protocol::STRING_DISPLAY, Painter::display)?;
     Ok(module)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_template() {
+        let mut context: HashMap<String, String> = HashMap::new();
+        context.insert("name".to_string(), "world".to_string());
+        let result = template("hello {{ name }}", context).unwrap();
+        assert_eq!(result, "hello world");
+    }
 }

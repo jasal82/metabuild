@@ -1,5 +1,4 @@
 use arch::*;
-use metabuild::TaskRunner;
 
 mod artifactory;
 mod python;
@@ -11,7 +10,7 @@ fn step(msg) {
     println!("{}", str::paint(format!("{}...", msg)).blue().bold());
 }
 
-fn filesystem_examples() {
+pub fn fs_examples(args) {
     // Create a temporary directory (will be deleted when the object is dropped)
     step("Creating temporary directory");
     let t = fs::TempDir::new()?;
@@ -52,7 +51,30 @@ fn filesystem_examples() {
     println!("File path {}", f.path());
 }
 
-fn python_examples() {
+pub fn arch_examples(args) {
+    step("Create a .tar.gz archive");
+    let targz = arch::TarGz::create("test.tar.gz")?;
+
+    step("Append a file");
+    targz.append_file("sick.rn", "sick.rn")?;
+
+    step("Append a directory");
+    targz.append_dir_all(".", "tests");
+
+    step("Create a .zip archive");
+    let zip = arch::Zip::create("test.zip")?;
+
+    step("Append a file");
+    zip.append_file("sick.rn", "sick.rn")?;
+
+    step("Append a directory");
+    zip.append_dir_all(".", "tests");
+
+    step("Remove files");
+
+}
+
+pub fn py_examples(args) {
     // Create a temporary directory (will be deleted when the object is dropped)
     step("Creating temporary directory");
     let t = fs::TempDir::new()?;
@@ -81,14 +103,14 @@ fn python_examples() {
         // disabled so that we can see potential output
         step("Running python interpreter");
         venv.quiet(false);
-        let exitcode = venv.run([venv.get_interpreter(), "-c", "import scipy"]);
-        if exitcode == 0 {
+        let output = venv.run([venv.get_interpreter(), "-c", "import scipy"])?;
+        if output.status() == 0 {
             println!("Success");
         }
     }
 }
 
-fn config_examples() {
+pub fn cfg_examples(args) {
     // Create a temporary directory (will be deleted when the object is dropped)
     step("Creating temporary directory");
     let t = fs::TempDir::new()?;
@@ -114,7 +136,7 @@ fn config_examples() {
     println!("core.dependencies.python: {}", cfg.core.dependencies.python);
 }
 
-fn net_examples() {
+pub fn net_examples(args) {
     // Send a dummy GET request and display the status code and response
     step("Sending an HTTP GET request");
     println!("GET https://reqres.in/api/users?page=2");
@@ -136,11 +158,82 @@ fn net_examples() {
     println!("Payload: {}", response.into_string()?);
 }
 
-pub fn main(tasks) {
-    let runner = TaskRunner::new();
-    runner.register("fs_examples", filesystem_examples);
-    runner.register("py_examples", python_examples);
-    runner.register("cfg_examples", config_examples);
-    runner.register("net_examples", net_examples);
-    runner.run(tasks);
+pub fn cmd_examples(args) {
+    step("Run a command via argument vector");
+    let c = cmd::Command::new("git").arg("--version");
+    let output = c.execute()?;
+    println!("{}", output.stdout());
+
+    step("Run a command specified in a string");
+    let cargs = cmd::split("git --version")?;
+    let c = cmd::Command::new(cargs[0]).args(cargs.iter().skip(1).collect::<Vec>());
+    let output = c.execute()?;
+    println!("{}", output.stdout());
+
+    step("Use the shell function from the core module");
+    let output = core::shell("git --version")?;
+    println!("{}", output.stdout());
 }
+
+pub fn regex_examples(args) {
+    step("Match");
+    let v = "1.4.7-beta";
+    let re = regex::Regex::new("(\\d+)\\.(\\d+)\\.(\\d+)(-\\w+)?");
+    println!("{}", re.is_match(v));
+
+    step("Replace");
+    let s = "2021-03-15, 2022-04-16 and 2023-05-17";
+    let re = regex::Regex::new("(?P<y>\\d{4})-(?P<m>\\d{2})-(?P<d>\\d{2})");
+    println!("{}", re.replace_all(s, "$m/$d/$y"));
+
+    step("Find");
+    let s = "Hello world!";
+    let re = regex::Regex::new("w.+d");
+    let m = re.find(s)?;
+    println!("start {}, end {}, text '{}'", m.start(), m.end(), m.as_str());
+
+    step("Find iter");
+    let s = "This is a test string for the find iter function";
+    let re = regex::Regex::new("f\\w*");
+    let matches = re.find_iter(s);
+    for m in matches {
+        println!("{}", m.as_str());
+    }
+
+    step("Captures");
+    let s = "size: small";
+    let re = regex::Regex::new("(\\w+):\\s+(\\w+)");
+    let c = re.captures(s)?;
+    println!("key: {}, value: {}", c.get(1)?.as_str(), c.get(2)?.as_str());
+
+    step("Captures iter");
+    let s = "size: small, color: red, weight: 23";
+    let re = regex::Regex::new("(\\w+):\\s+(\\w+)");
+    let captures = re.captures_iter(s);
+    for c in captures {
+        if let Some(c) = c {
+            println!("key: {}, value: {}", c.get(1)?.as_str(), c.get(2)?.as_str());
+        }
+    }
+}
+
+pub fn paint_examples(args) {
+    println!("{}", str::paint("Hello world!").yellow().underline());
+    println!("{}", str::paint("Hello world!").green().bold());
+    println!("{}", str::paint("Hello world!").red().italic());
+    println!("{} {}!", str::paint("Hello").green(), str::paint("world").red());
+    println(`${str::paint("Hello").yellow()} ${str::paint("world").blue()}!`);
+    println!("{}", str::paint("Hello").yellow().bold().on_blue());
+}
+
+pub fn tmpl_examples(args) {
+    let context = #{size: "small", color: "red"};
+    let t = "
+{
+    \"size\": \"{{ size }}\",
+    \"color\": \"{{ color }}\"
+}";
+    let s = str::template(t, context).expect("Failed to render template");
+    println!("{}", s);
+}
+

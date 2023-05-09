@@ -37,7 +37,7 @@ impl SourceLoader for CustomSourceLoader {
     }
 }
 
-pub fn run_tasks(script_file: &Path, tasks: &[String], warn: bool) -> Result<(), anyhow::Error> {
+pub fn run_tasks(script_file: &Path, task: &str, args: &[String], warn: bool) -> Result<(), anyhow::Error> {
     let mut context = Context::with_default_modules()?;
     context.install(&rune_modules::json::module(true)?)?;
     context.install(&api::arch::module()?)?;
@@ -49,7 +49,6 @@ pub fn run_tasks(script_file: &Path, tasks: &[String], warn: bool) -> Result<(),
     context.install(&api::re::module()?)?;
     context.install(&api::str::module()?)?;
     context.install(&api::sys::module()?)?;
-    context.install(&api::metabuild::module()?)?;
     context.install(&api::toml::module()?)?;
     context.install(&api::yaml::module()?)?;
 
@@ -82,8 +81,8 @@ pub fn run_tasks(script_file: &Path, tasks: &[String], warn: bool) -> Result<(),
 
     let mut vm = Vm::new(Arc::new(context.runtime()), Arc::new(unit));
     let mut execution = vm.execute(
-        ["main"],
-        (tasks.iter().map(|t| t.to_owned()).collect::<Vec<String>>(),),
+        [task],
+        (args.to_vec(),),
     )?;
     let result = execution.complete();
     let _errored = match result {
