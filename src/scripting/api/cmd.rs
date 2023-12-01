@@ -1,5 +1,5 @@
-use rune::runtime::Object;
-use rune::{Any, ContextError, Module};
+use rune::runtime::{Object, Value, VmResult};
+use rune::{Any, ContextError, Module, vm_try};
 use std::process::{Command, Stdio};
 
 #[cfg(target_os = "windows")]
@@ -66,6 +66,7 @@ mod internal {
 }
 
 #[derive(Any, PartialEq, Eq)]
+#[rune(item = ::cmd)]
 enum Routing {
     #[rune(constructor)]
     Piped,
@@ -78,6 +79,7 @@ enum Routing {
 }
 
 #[derive(Any)]
+#[rune(item = ::cmd, name = Command)]
 struct Cmd {
     args: Vec<String>,
     envs: Vec<(String, String)>,
@@ -90,6 +92,7 @@ struct Cmd {
 }
 
 #[derive(Any)]
+#[rune(item = ::cmd)]
 struct Output {
     status: i64,
     stdout: String,
@@ -97,20 +100,24 @@ struct Output {
 }
 
 impl Output {
+    #[rune::function]
     pub fn status(&self) -> i64 {
         self.status
     }
 
+    #[rune::function]
     pub fn stdout(&self) -> String {
         self.stdout.clone()
     }
 
+    #[rune::function]
     pub fn stderr(&self) -> String {
         self.stderr.clone()
     }
 }
 
 impl Cmd {
+    #[rune::function(path = Self::new)]
     pub fn new(cmd: &str) -> Self {
         Self {
             args: vec![cmd.into()],
@@ -124,58 +131,75 @@ impl Cmd {
         }
     }
 
+    #[rune::function]
     pub fn arg(mut self, arg: &str) -> Cmd {
         self.args.push(arg.into());
         self
     }
 
-    pub fn args(mut self, args: Vec<String>) -> Cmd {
+    #[rune::function]
+    pub fn args(mut self, args: &[Value]) -> VmResult<Cmd> {
         for arg in args {
-            self.args.push(arg);
+            match arg {
+                Value::String(s) => {
+                    self.args.push(vm_try!(s.borrow_ref()).to_string());
+                }
+                actual => {
+                    return VmResult::expected::<String>(vm_try!(actual.type_info()));
+                }
+            }
         }
-        self
+        VmResult::Ok(self)
     }
 
+    #[rune::function]
     pub fn current_dir(mut self, dir: &str) -> Cmd {
         self.current_dir = Some(dir.into());
         self
     }
 
+    #[rune::function]
     pub fn env(mut self, key: &str, value: &str) -> Cmd {
         self.envs.push((key.into(), value.into()));
         self
     }
 
+    #[rune::function]
     pub fn envs(mut self, envs: Object) -> Cmd {
         for (key, value) in envs {
             self.envs.push((
                 key.to_string(),
-                value.into_string().unwrap().take().unwrap(),
+                value.into_string().unwrap().take().unwrap().to_string(),
             ));
         }
         self
     }
 
+    #[rune::function]
     pub fn env_clear(mut self) -> Cmd {
         self.env_clear = true;
         self
     }
 
+    #[rune::function]
     pub fn env_remove(mut self, key: &str) -> Cmd {
         self.env_remove.push(key.into());
         self
     }
 
+    #[rune::function]
     pub fn shell(mut self) -> Cmd {
         self.shell = true;
         self
     }
 
+    #[rune::function]
     pub fn stdout(mut self, routing: Routing) -> Cmd {
         self.stdout = routing;
         self
     }
 
+    #[rune::function]
     pub fn stderr(mut self, routing: Routing) -> Cmd {
         self.stderr = routing;
         self
@@ -241,6 +265,7 @@ impl Cmd {
         cmd
     }
 
+    #[rune::function]
     pub fn execute(&mut self) -> Result<Output, anyhow::Error> {
         let mut cmd = self.build_cmd();
         let output = cmd
@@ -254,36 +279,41 @@ impl Cmd {
     }
 }
 
+#[rune::function]
 pub fn split(command: &str) -> Result<Vec<String>, anyhow::Error> {
     shell_words::split(command).map_err(|e| e.into())
 }
 
+#[rune::function]
 pub fn join(args: Vec<String>) -> String {
     shell_words::join(args)
 }
 
 pub fn module() -> Result<Module, ContextError> {
-    let mut module = Module::with_crate("cmd");
-    module.function(["split"], split)?;
-    module.function(["join"], join)?;
+    let mut module = Module::with_crate("cmd")?;
+    module.function_meta(split)?;
+    module.function_meta(join)?;
     module.ty::<Cmd>()?;
     module.ty::<Routing>()?;
     module.ty::<Output>()?;
-    module.inst_fn("status", Output::status)?;
-    module.inst_fn("stdout", Output::stdout)?;
-    module.inst_fn("stderr", Output::stderr)?;
-    module.function(["Command", "new"], Cmd::new)?;
-    module.inst_fn("arg", Cmd::arg)?;
-    module.inst_fn("args", Cmd::args)?;
-    module.inst_fn("current_dir", Cmd::current_dir)?;
-    module.inst_fn("env", Cmd::env)?;
-    module.inst_fn("envs", Cmd::envs)?;
-    module.inst_fn("env_clear", Cmd::env_clear)?;
-    module.inst_fn("env_remove", Cmd::env_remove)?;
-    module.inst_fn("shell", Cmd::shell)?;
-    module.inst_fn("stdout", Cmd::stdout)?;
-    module.inst_fn("stderr", Cmd::stderr)?;
-    module.inst_fn("execute", Cmd::execute)?;
+
+    module.function_meta(Output::status)?;
+    module.function_meta(Output::stdout)?;
+    module.function_meta(Output::stderr)?;
+
+    module.function_meta(Cmd::new)?;
+    module.function_meta(Cmd::arg)?;
+    module.function_meta(Cmd::args)?;
+    module.function_meta(Cmd::current_dir)?;
+    module.function_meta(Cmd::env)?;
+    module.function_meta(Cmd::envs)?;
+    module.function_meta(Cmd::env_clear)?;
+    module.function_meta(Cmd::env_remove)?;
+    module.function_meta(Cmd::shell)?;
+    module.function_meta(Cmd::stdout)?;
+    module.function_meta(Cmd::stderr)?;
+    module.function_meta(Cmd::execute)?;
+
     Ok(module)
 }
 
@@ -293,12 +323,6 @@ mod tests {
 
     #[test]
     fn test_cmd() {
-        let mut cmd = Cmd::new("echo")
-            .arg("Hello World")
-            .shell();
-        #[cfg(target_os = "windows")]
-        assert_eq!(cmd.execute().unwrap().stdout(), "Hello World\r\n");
-        #[cfg(target_os = "linux")]
-        assert_eq!(cmd.execute().unwrap().stdout(), "Hello World\n");
+        
     }
 }

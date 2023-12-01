@@ -23,26 +23,30 @@ once_cell = "1"
 path-absolutize = "3.0.14"
 path-slash = "0.2.1"
 regex = "1"
-rune = "0.12.1"
-rune-modules = { version = "0.12.1", features = ["json"] }
+rune = "0.13.0"
+rune-modules = { version = "0.13.0", features = ["json", "toml"] }
 rustls = "0.20.8"
 rustls-native-certs = "*"
 self_update = "0.36"
 semver = "1"
 serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
 shell-words = "1"
 tar = "0.4"
 tempfile = "3"
 tera = "1"
+thiserror = "1"
 toml = "0.7"
 ureq = { version = "2", features = ["native-certs", "gzip"] }
 which = "4.4"
-yaml-rust = "0.4"
 zip = { version = "0.6", features = ["deflate"] }
 
 [dev-dependencies]
 futures-executor = "0.3"
 thiserror = "1"
+
+[profile.dev]
+opt-level = 0
 
 [profile.release]
 opt-level = "z"

@@ -52,7 +52,7 @@ pub fn download_and_run(version: &semver::Version) {
             path.set_extension("exe");
         }
         let url = format!(r#"https://github.com/jasal82/metabuild/releases/download/v{version}/mb-v{version}-{target}{suffix}"#);
-        let mut response = crate::net::download_file(&url, &path, &HashMap::new());
+        let _ = crate::net::download_file(&url, &path, &HashMap::new());
         #[cfg(unix)]
         std::fs::set_permissions(&path, Permissions::from_mode(0o755)).unwrap();
     }

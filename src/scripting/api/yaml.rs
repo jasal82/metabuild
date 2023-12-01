@@ -1,47 +1,51 @@
-use rune::runtime::{Object, Value};
-use rune::{ContextError, Module};
-use yaml_rust::{yaml::Hash, Yaml, YamlLoader};
+use rune::{Any, ContextError, Module, vm_write};
+use rune::runtime::{Formatter, Value, VmResult};
+use rune::alloc::fmt::TryWrite;
+use rune::alloc::String;
 
-fn convert_yaml_to_rune(yaml: Yaml) -> Value {
-    match yaml {
-        Yaml::String(s) => s.into(),
-        Yaml::Integer(i) => i.into(),
-        Yaml::Real(f) => f.parse::<f64>().unwrap().into(),
-        Yaml::Boolean(b) => b.into(),
-        Yaml::Array(a) => convert_vector_to_rune(a).into(),
-        Yaml::Hash(t) => convert_hash_to_object(t).into(),
-        _ => ().into(),
+#[derive(Any)]
+#[rune(item = ::yaml)]
+pub struct Error {
+    error: serde_yaml::Error,
+}
+
+impl Error {
+    #[rune::function(protocol = STRING_DISPLAY)]
+    fn display(&self, f: &mut Formatter) -> VmResult<()> {
+        vm_write!(f, "{}", self.error);
+        VmResult::Ok(())
+    }
+
+    #[rune::function(protocol = STRING_DEBUG)]
+    fn debug(&self, f: &mut Formatter) -> VmResult<()> {
+        vm_write!(f, "{:?}", self.error);
+        VmResult::Ok(())
     }
 }
 
-fn convert_hash_to_object(hash: Hash) -> Object {
-    let mut map = Object::new();
-    for (k, v) in hash {
-        map.insert(k.as_str().unwrap().into(), convert_yaml_to_rune(v));
+impl From<serde_yaml::Error> for Error {
+    fn from(error: serde_yaml::Error) -> Self {
+        Self { error }
     }
-    map
 }
 
-fn convert_vector_to_rune(yaml: Vec<Yaml>) -> rune::runtime::Vec {
-    let mut vec = rune::runtime::Vec::new();
-    for e in yaml {
-        vec.push(convert_yaml_to_rune(e));
-    }
-    vec
+#[rune::function]
+fn from_string(string: &str) -> Result<Value, Error> {
+    Ok(serde_yaml::from_str(string)?)
 }
 
-pub fn from_file(file: &str) -> rune::runtime::Vec {
-    let content = std::fs::read_to_string(file).unwrap();
-    from_string(&content)
-}
-
-pub fn from_string(content: &str) -> rune::runtime::Vec {
-    convert_vector_to_rune(YamlLoader::load_from_str(content).unwrap())
+#[rune::function(vm_result)]
+fn to_string(value: Value) -> Result<String, Error> {
+    Ok(String::try_from(serde_yaml::to_string(&value)?).vm?)
 }
 
 pub fn module() -> Result<Module, ContextError> {
-    let mut module = Module::with_crate("yaml");
-    module.function(["from_file"], from_file)?;
-    module.function(["from_string"], from_string)?;
+    let mut module = Module::with_crate("yaml")?;
+    module.ty::<Error>()?;
+    module.function_meta(Error::display)?;
+    module.function_meta(Error::debug)?;
+
+    module.function_meta(from_string)?;
+    module.function_meta(to_string)?;
     Ok(module)
 }

@@ -110,7 +110,7 @@ pub fn py_examples(args) {
     }
 }
 
-pub fn cfg_examples(args) {
+pub fn toml_examples(args) {
     // Create a temporary directory (will be deleted when the object is dropped)
     step("Creating temporary directory");
     let t = fs::TempDir::new()?;
@@ -119,16 +119,46 @@ pub fn cfg_examples(args) {
     step("Writing config file");
     let cfgfile = fs::File::create(t.path() + "/config.toml")?;
     cfgfile.write("
-        [core]
-        version = \"0.1.0\"
-        [core.dependencies]
-        python = \"3.7.0\"
+[core]
+version = \"0.1.0\"
+[core.dependencies]
+python = \"3.7.0\"
     ");
     cfgfile.sync();
 
     // Load the config file
     step("Loading config file");
-    let cfg = toml::from_file(t.path() + "/config.toml")?;
+    let f = fs::File::open(t.path() + "/config.toml")?;
+    let contents = f.read()?;
+    let cfg = toml::from_string(contents)?;
+
+    // Print the config file
+    step("Printing values from the config");
+    println!("core.version: {}", cfg.core.version);
+    println!("core.dependencies.python: {}", cfg.core.dependencies.python);
+}
+
+pub fn yaml_examples(args) {
+    // Create a temporary directory (will be deleted when the object is dropped)
+    step("Creating temporary directory");
+    let t = fs::TempDir::new()?;
+    
+    // Write a config file into the temporary directory
+    step("Writing config file");
+    let cfgfile = fs::File::create(t.path() + "/config.yaml")?;
+    cfgfile.write("
+core:
+    version: \"0.1.0\"
+    dependencies:
+        python: \"3.7.0\"
+    ");
+    cfgfile.sync();
+
+    // Load the config file
+    step("Loading config file");
+    let f = fs::File::open(t.path() + "/config.yaml")?;
+    let contents = f.read()?;
+    let cfg = yaml::from_string(contents)?;
 
     // Print the config file
     step("Printing values from the config");
@@ -237,3 +267,7 @@ pub fn tmpl_examples(args) {
     println!("{}", s);
 }
 
+pub fn git_examples(args) {
+    let r = git::Repository::open(".")?;
+    println!("{:?}", r.branches()?);
+}
