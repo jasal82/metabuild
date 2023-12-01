@@ -4,6 +4,7 @@ pub fn info<S: Into<String>>(msg: S) {
     println!("[{}] {}", "INFO   ".bright_blue().bold(), msg.into());
 }
 
+#[allow(dead_code)]
 pub fn warning<S: Into<String>>(msg: S) {
     println!("[{}] {}", "WARNING".bright_yellow().bold(), msg.into());
 }

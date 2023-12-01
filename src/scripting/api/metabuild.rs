@@ -4,21 +4,25 @@ use rune::{Any, ContextError, Module};
 use std::collections::HashMap;
 
 #[derive(Any)]
+#[rune(item = ::metabuild)]
 struct TaskRunner {
     tasks: HashMap<Key, Function>,
 }
 
 impl TaskRunner {
+    #[rune::function(path = Self::new)]
     pub fn new() -> Self {
         Self {
             tasks: HashMap::new(),
         }
     }
 
+    #[rune::function]
     pub fn register(&mut self, name: Key, f: Function) {
         self.tasks.insert(name, f);
     }
 
+    #[rune::function]
     pub fn call(&self, name: Key, args: &Vec) -> Result<Value, VmError> {
         match self.tasks.get(&name) {
             Some(f) => f.call::<std::vec::Vec<Value>, Value>(args.clone().into_inner()),
@@ -30,6 +34,7 @@ impl TaskRunner {
         }
     }
 
+    #[rune::function]
     pub fn run(&self, tasks: &Vec) {
         if tasks.is_empty() {
             error("No tasks specified");
@@ -52,11 +57,13 @@ impl TaskRunner {
 }
 
 pub fn module() -> Result<Module, ContextError> {
-    let mut module = Module::with_crate("metabuild");
+    let mut module = Module::with_crate("metabuild")?;
     module.ty::<TaskRunner>()?;
-    module.function(["TaskRunner", "new"], TaskRunner::new)?;
-    module.inst_fn("register", TaskRunner::register)?;
-    module.inst_fn("call", TaskRunner::call)?;
-    module.inst_fn("run", TaskRunner::run)?;
+
+    module.function_meta(TaskRunner::new)?;
+    module.function_meta(TaskRunner::register)?;
+    module.function_meta(TaskRunner::call)?;
+    module.function_meta(TaskRunner::run)?;
+
     Ok(module)
 }

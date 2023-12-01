@@ -3,11 +3,13 @@ use regex::Regex;
 use rune::{Any, ContextError, Module};
 
 #[derive(Any)]
+#[rune(item = ::regex, name = Regex)]
 struct RegexRune {
     inner: Regex,
 }
 
 #[derive(Any, Clone)]
+#[rune(item = ::regex)]
 struct MatchRune {
     start: usize,
     end: usize,
@@ -15,25 +17,30 @@ struct MatchRune {
 }
 
 #[derive(Any)]
+#[rune(item = ::regex)]
 struct CapturesRune {
     groups: Vec<Option<MatchRune>>,
 }
 
 impl RegexRune {
+    #[rune::function(path = Self::new)]
     pub fn new(pattern: &str) -> Self {
         Self {
             inner: Regex::new(pattern).unwrap(),
         }
     }
 
+    #[rune::function]
     pub fn is_match(&self, text: &str) -> bool {
         self.inner.is_match(text)
     }
 
+    #[rune::function]
     pub fn replace_all(&self, text: &str, replacement: &str) -> String {
         self.inner.replace_all(text, replacement).to_string()
     }
 
+    #[rune::function]
     pub fn find(&self, text: &str) -> Option<MatchRune> {
         self.inner.find(text).map(|m| MatchRune {
             start: m.start(),
@@ -42,6 +49,7 @@ impl RegexRune {
         })
     }
 
+    #[rune::function]
     pub fn find_iter(&self, text: &str) -> Vec<MatchRune> {
         self.inner
             .find_iter(text)
@@ -53,10 +61,12 @@ impl RegexRune {
             .collect()
     }
 
+    #[rune::function]
     pub fn captures(&self, text: &str) -> Option<CapturesRune> {
         self.inner.captures(text).map(|c| CapturesRune::new(&c))
     }
 
+    #[rune::function]
     pub fn captures_iter(&self, text: &str) -> Vec<Option<CapturesRune>> {
         let mut result = Vec::new();
         for caps in self.inner.captures_iter(text) {
@@ -75,14 +85,17 @@ impl MatchRune {
         }
     }
 
+    #[rune::function]
     pub fn start(&self) -> usize {
         self.start
     }
 
+    #[rune::function]
     pub fn end(&self) -> usize {
         self.end
     }
 
+    #[rune::function]
     pub fn as_str(&self) -> String {
         self.text.clone()
     }
@@ -95,29 +108,32 @@ impl CapturesRune {
         }
     }
 
+    #[rune::function]
     pub fn get(&self, index: usize) -> Option<MatchRune> {
         self.groups.get(index).unwrap().as_ref().cloned()
     }
 }
 
 pub fn module() -> Result<Module, ContextError> {
-    let mut module = Module::with_crate("regex");
+    let mut module = Module::with_crate("regex")?;
     module.ty::<RegexRune>()?;
     module.ty::<MatchRune>()?;
     module.ty::<CapturesRune>()?;
 
-    module.function(["Regex", "new"], RegexRune::new)?;
-    module.inst_fn("is_match", RegexRune::is_match)?;
-    module.inst_fn("replace_all", RegexRune::replace_all)?;
-    module.inst_fn("find", RegexRune::find)?;
-    module.inst_fn("find_iter", RegexRune::find_iter)?;
-    module.inst_fn("captures", RegexRune::captures)?;
-    module.inst_fn("captures_iter", RegexRune::captures_iter)?;
+    module.function_meta(RegexRune::new)?;
+    module.function_meta(RegexRune::is_match)?;
+    module.function_meta(RegexRune::replace_all)?;
+    module.function_meta(RegexRune::find)?;
+    module.function_meta(RegexRune::find_iter)?;
+    module.function_meta(RegexRune::captures)?;
+    module.function_meta(RegexRune::captures_iter)?;
 
-    module.inst_fn("start", MatchRune::start)?;
-    module.inst_fn("end", MatchRune::end)?;
-    module.inst_fn("as_str", MatchRune::as_str)?;
-    module.inst_fn("get", CapturesRune::get)?;
+    module.function_meta(MatchRune::start)?;
+    module.function_meta(MatchRune::end)?;
+    module.function_meta(MatchRune::as_str)?;
+    
+    module.function_meta(CapturesRune::get)?;
+
     Ok(module)
 }
 

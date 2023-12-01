@@ -1,9 +1,11 @@
-use rune::ast::Span;
+use rune::ast::Spanned;
 use rune::termcolor::{ColorChoice, StandardStream};
 use rune::{
-    compile::{CompileError, FileSourceLoader, Item, SourceLoader},
-    Context, Diagnostics, Source, Sources, Vm,
+    compile, compile::{FileSourceLoader, Item, SourceLoader},
+    Context, Diagnostics, Source, Sources, Value, Vm
 };
+use anyhow::{anyhow, Context as _};
+//use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -23,15 +25,15 @@ impl CustomSourceLoader {
 }
 
 impl SourceLoader for CustomSourceLoader {
-    fn load(&mut self, root: &Path, item: &Item, span: Span) -> Result<Source, CompileError> {
+    fn load(&mut self, root: &Path, item: &Item, span: &dyn Spanned) -> compile::Result<Source> {
         // Try the default loader first. If that fails, try to use the module
         // path as root instead. We have to add a dummy file name to the path
         // because the FileSourceLoader pops the last path component off.
-        match self.file_loader.load(root, item, span) {
+        match self.file_loader.load(root, item, &span) {
             Ok(source) => Ok(source),
             Err(_) => {
                 let module_path = Path::new(".mb/modules/dummy");
-                self.file_loader.load(module_path, item, span)
+                self.file_loader.load(module_path, item, &span)
             }
         }
     }
@@ -40,6 +42,9 @@ impl SourceLoader for CustomSourceLoader {
 pub fn run_tasks(script_file: &Path, task: &str, args: &[String], warn: bool) -> Result<(), anyhow::Error> {
     let mut context = Context::with_default_modules()?;
     context.install(&rune_modules::json::module(true)?)?;
+    context.install(&rune_modules::toml::module(true)?)?;
+    context.install(&rune_modules::toml::de::module(true)?)?;
+    context.install(&rune_modules::toml::ser::module(true)?)?;
     context.install(&api::arch::module()?)?;
     context.install(&api::cmd::module()?)?;
     context.install(&api::fs::module()?)?;
@@ -49,11 +54,11 @@ pub fn run_tasks(script_file: &Path, task: &str, args: &[String], warn: bool) ->
     context.install(&api::re::module()?)?;
     context.install(&api::str::module()?)?;
     context.install(&api::sys::module()?)?;
-    context.install(&api::toml::module()?)?;
+    //context.install(&api::toml::module()?)?;
     context.install(&api::yaml::module()?)?;
 
     let mut sources = Sources::new();
-    sources.insert(Source::from_path(script_file)?);
+    sources.insert(Source::from_path(script_file).with_context(|| anyhow!("cannot read file: {}", script_file.display()))?)?;
 
     let mut diagnostics = match warn {
         true => Diagnostics::new(),
@@ -79,21 +84,26 @@ pub fn run_tasks(script_file: &Path, task: &str, args: &[String], warn: bool) ->
 
     let unit = result?;
 
-    let mut vm = Vm::new(Arc::new(context.runtime()), Arc::new(unit));
+    let mut vm = Vm::new(Arc::new(context.runtime()?), Arc::new(unit));
     let mut execution = vm.execute(
         [task],
         (args.to_vec(),),
     )?;
-    let result = execution.complete();
+    let result = execution.complete().into_result();
     let _errored = match result {
         Ok(value) => {
-            if value.into_unit().is_err() {
-                crate::logging::warning("Function main() returned a non-unit value. All errors must be handled in the script.");
+            match value {
+                Value::EmptyTuple => None,
+                _ => {
+                    vm.with(|| {
+                        println!("{:?}", value);
+                    });
+                    None
+                }
             }
-            None
         },
         Err(error) => {
-            let mut writer = StandardStream::stderr(ColorChoice::Always);
+            let mut writer: StandardStream = StandardStream::stderr(ColorChoice::Always);
             error.emit(&mut writer, &sources)?;
             Some(error)
         }
