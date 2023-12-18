@@ -1,3 +1,4 @@
+pub mod arch;
 pub mod http;
 pub mod io;
 pub mod net;

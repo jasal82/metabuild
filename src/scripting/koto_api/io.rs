@@ -12,8 +12,14 @@ struct TempDir {
 
 impl TempDir {
     fn new() -> Result<Self> {
-        let handle = tempfile::tempdir().map_err(|e| make_runtime_error!(format!("Failed to create tempdir {e}")))?;
-        let path = handle.path().to_str().expect("Failed to convert path to string").to_string().into();
+        let handle = tempfile::tempdir()
+            .map_err(|e| make_runtime_error!(format!("Failed to create tempdir {e}")))?;
+        let path = handle
+            .path()
+            .to_str()
+            .expect("Failed to convert path to string")
+            .to_string()
+            .into();
         Ok(Self {
             handle: Rc::new(handle),
             path,
@@ -62,7 +68,8 @@ fn make_temp_dir_entries() -> ValueMap {
         .method("path", |ctx| match ctx.args {
             [] => Ok(ctx.instance()?.path().into()),
             unexpected => type_error_with_slice("()", unexpected),
-        }).build()
+        })
+        .build()
 }
 
 thread_local! {
