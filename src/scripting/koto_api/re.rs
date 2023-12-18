@@ -215,7 +215,12 @@ impl Match {
     }
 
     pub fn range(&self) -> Value {
-        KRange::bounded(self.start.try_into().unwrap(), self.end.try_into().unwrap(), false).into()
+        KRange::bounded(
+            self.start.try_into().unwrap(),
+            self.end.try_into().unwrap(),
+            false,
+        )
+        .into()
     }
 }
 
@@ -294,9 +299,7 @@ impl KotoObject for Captures {
     fn index(&self, index: &Value) -> Result<Value> {
         match index {
             Value::Number(index) => match self.captures.get(index.as_i64() as usize) {
-                Some(Some((start, end))) => {
-                    Ok(Match::new(self.text.clone(), *start, *end).into())
-                }
+                Some(Some((start, end))) => Ok(Match::new(self.text.clone(), *start, *end).into()),
                 _ => runtime_error!("Invalid capture group index"),
             },
             Value::Str(name) => match self.byname.get(name.as_str()) {

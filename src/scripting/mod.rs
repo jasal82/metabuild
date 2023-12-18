@@ -12,6 +12,7 @@ struct DynamicModule {
 
 fn add_common_prelude(koto: &mut Koto) {
     let prelude = koto.prelude();
+    prelude.add_map("arch", koto_api::arch::make_module());
     prelude.add_map("io_ext", koto_api::io::make_module());
     prelude.add_map("http", koto_api::http::make_module());
     prelude.add_map("json", koto_json::make_module());

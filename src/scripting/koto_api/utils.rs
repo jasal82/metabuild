@@ -3,8 +3,8 @@ use colored::{Color, ColoredString, Colorize};
 use koto::prelude::*;
 use koto::runtime::Result;
 use koto_serialize::SerializableValue;
-use tera::{Context, Tera};
 use std::collections::HashMap;
+use tera::{Context, Tera};
 
 #[derive(Clone, Debug)]
 pub struct Painter {
@@ -481,14 +481,22 @@ enum Source {
 fn template_internal(tpl: Source, context: HashMap<String, &Value>) -> Result<Value> {
     let mut tera = Tera::default();
     match tpl {
-        Source::File(file) => tera.add_template_file(file, Some("template")).map_err(|e| make_runtime_error!(format!("Could not read template from file: {e}")))?,
-        Source::Template(tpl) => tera.add_raw_template("template", tpl.as_str()).map_err(|e| make_runtime_error!(format!("Could not read template from string: {e}")))?,
+        Source::File(file) => tera
+            .add_template_file(file, Some("template"))
+            .map_err(|e| make_runtime_error!(format!("Could not read template from file: {e}")))?,
+        Source::Template(tpl) => tera
+            .add_raw_template("template", tpl.as_str())
+            .map_err(|e| {
+                make_runtime_error!(format!("Could not read template from string: {e}"))
+            })?,
     }
     let mut tera_context = Context::new();
     for (k, v) in context {
         tera_context.insert(k, &SerializableValue(v));
     }
-    tera.render("template", &tera_context).map(|v| v.into()).map_err(|e| make_runtime_error!(format!("Failed to render template: {e}")))
+    tera.render("template", &tera_context)
+        .map(|v| v.into())
+        .map_err(|e| make_runtime_error!(format!("Failed to render template: {e}")))
 }
 
 pub fn template_file(tpl_file: &str, context: HashMap<String, &Value>) -> Result<Value> {
@@ -507,7 +515,12 @@ pub fn encode_bytes_base64(bytes: &KTuple) -> Result<Value> {
     let mut v = Vec::<u8>::new();
     for i in bytes.iter() {
         if let Value::Number(i) = i {
-            v.push(u32::try_from(i).expect("Failed to convert byte value").try_into().expect("Failed to convert byte value"))
+            v.push(
+                u32::try_from(i)
+                    .expect("Failed to convert byte value")
+                    .try_into()
+                    .expect("Failed to convert byte value"),
+            )
         } else {
             panic!("Expected a tuple of bytes")
         }
@@ -550,8 +563,16 @@ pub fn make_module() -> KMap {
     });
     result.add_fn("decode_base64", |ctx| match ctx.args() {
         [Value::Str(text)] => {
-            let decoded = general_purpose::STANDARD.decode(text.as_str()).expect("Failed to decode bytes");
-            Ok(KTuple::from(decoded.iter().map(|v| Value::Number(KNumber::from(v))).collect::<Vec<Value>>()).into())
+            let decoded = general_purpose::STANDARD
+                .decode(text.as_str())
+                .expect("Failed to decode bytes");
+            Ok(KTuple::from(
+                decoded
+                    .iter()
+                    .map(|v| Value::Number(KNumber::from(v)))
+                    .collect::<Vec<Value>>(),
+            )
+            .into())
         }
         unexpected => type_error_with_slice("(text: string)", unexpected),
     });
