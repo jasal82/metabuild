@@ -5,6 +5,7 @@ use toml::Table;
 
 mod cli;
 mod commands;
+mod deps;
 mod git;
 mod logging;
 mod net;
@@ -48,8 +49,11 @@ fn print_header() {
 }
 
 fn parse_config(file: &Path) -> toml::Table {
-    let content = std::fs::read_to_string(file).expect(format!("Could not read config file '{}'", file.display()).as_str());
-    content.parse::<Table>().expect(format!("Could not parse config file '{}'", file.display()).as_str())
+    let content = std::fs::read_to_string(file)
+        .expect(format!("Could not read config file '{}'", file.display()).as_str());
+    content
+        .parse::<Table>()
+        .expect(format!("Could not parse config file '{}'", file.display()).as_str())
 }
 
 fn to_scope(global: bool) -> commands::config::ConfigScope {
@@ -101,13 +105,8 @@ pub fn main() -> Result<(), anyhow::Error> {
             commands::install::install_executables(&dependency_config);
             Ok(())
         }
-        Commands::Run { task, args, file, warn } => {
-            if let Err(e) = scripting::run_tasks(
-                file.as_ref().unwrap_or(&PathBuf::from("mb.rn")),
-                task,
-                args,
-                *warn,
-            ) {
+        Commands::Run { file } => {
+            if let Err(e) = scripting::run_tasks(file.as_ref().unwrap_or(&PathBuf::from("mb.rn"))) {
                 Cli::command().print_help().unwrap();
                 Err(e)
             } else {

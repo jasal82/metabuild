@@ -39,6 +39,16 @@ pub fn encode_base64(data: &str) -> String {
     general_purpose::STANDARD.encode(data)
 }
 
+#[rune::function]
+pub fn to_number(s: &str) -> Option<i64> {
+    s.parse::<i64>().ok()
+}
+
+#[rune::function]
+pub fn to_string(n: i64) -> String {
+    n.to_string()
+}
+
 #[derive(Any)]
 #[rune(item = ::str)]
 pub struct Painter {
@@ -358,6 +368,9 @@ pub fn module() -> Result<Module, ContextError> {
     module.function_meta(template_file)?;
     module.function_meta(template)?;
     module.function_meta(encode_base64)?;
+
+    module.function_meta(to_number)?;
+    module.function_meta(to_string)?;
 
     module.ty::<Painter>()?;
 

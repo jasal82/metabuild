@@ -19,12 +19,8 @@ pub enum Commands {
         password: Option<String>,
     },
     Run {
-        task: String,
-        args: Vec<String>,
         #[arg(short, long)]
         file: Option<PathBuf>,
-        #[arg(short, long, default_value = "false")]
-        warn: bool,
     },
     Update,
     Config {

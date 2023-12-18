@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 #[cfg(unix)]
-use {
-    std::fs::Permissions,
-    std::os::unix::fs::PermissionsExt,
-};
+use {std::fs::Permissions, std::os::unix::fs::PermissionsExt};
 
 fn get_target() -> &'static str {
     env!("TARGET")
@@ -17,11 +14,17 @@ pub fn pinned_version() -> Option<semver::Version> {
             let content = std::fs::read_to_string(&version_file).unwrap();
             match semver::Version::parse(&content) {
                 Ok(version) => {
-                    crate::logging::info(format!("Version pinned to {} by .mb-version file in {:?}", version, path));
-                    return Some(version)
-                },
+                    crate::logging::info(format!(
+                        "Version pinned to {} by .mb-version file in {:?}",
+                        version, path
+                    ));
+                    return Some(version);
+                }
                 Err(_e) => {
-                    crate::logging::error(format!("Invalid version '{}' in .mb-version file {:?}", content, path));
+                    crate::logging::error(format!(
+                        "Invalid version '{}' in .mb-version file {:?}",
+                        content, path
+                    ));
                     std::process::exit(1);
                 }
             }
@@ -51,7 +54,9 @@ pub fn download_and_run(version: &semver::Version) {
             suffix = ".exe";
             path.set_extension("exe");
         }
-        let url = format!(r#"https://github.com/jasal82/metabuild/releases/download/v{version}/mb-v{version}-{target}{suffix}"#);
+        let url = format!(
+            r#"https://github.com/jasal82/metabuild/releases/download/v{version}/mb-v{version}-{target}{suffix}"#
+        );
         let _ = crate::net::download_file(&url, &path, &HashMap::new());
         #[cfg(unix)]
         std::fs::set_permissions(&path, Permissions::from_mode(0o755)).unwrap();
