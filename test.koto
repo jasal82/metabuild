@@ -1,0 +1,119 @@
+tests_paint = 
+    @test colors: ||
+        t = utils.paint("Hello world!").yellow().underline()
+        print(t.to_string().bytes().to_tuple())
+        if os.name() == "windows"
+            assert_eq(t.to_string().bytes().to_tuple(), (27, 91, 52, 59, 51, 51, 109, 72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 33, 27, 91, 48, 109))
+        else
+            assert false
+
+try
+  test.run_tests tests_paint
+catch e
+  print "Test failed: $e"
+
+step = |msg|
+    print(utils.paint(msg + "...").blue().bold())
+
+paint_examples = ||
+    print(utils.paint("Hello world!").yellow().underline())
+    print(utils.paint("Hello world!").green().bold())
+    print(utils.paint("Hello world!").red().italic())
+    print("{} {}!".format(utils.paint("Hello").green(), utils.paint("world").red()))
+    print(utils.paint("Hello").yellow().bold().on_blue())
+
+
+name = core.append_exclamation_mark("world")
+print("Hello $name")
+
+f = io.open("conanbuildinfo.json")
+contents = f.read_to_string()
+build_info = json.from_string(contents)
+
+if build_info.contains_key("user_info_build")
+    print(build_info.user_info_build.doc_tool.doc_tool_jar)
+else
+    print("No user_info_build in conanbuildinfo.json")
+
+print("{} {}!".format utils.paint("Hello").red().underline(), utils.paint("world").green().bold())
+for t in "bla/blubb/eins/zwei".split("/")
+    print t
+
+step("Run paint examples")
+paint_examples()
+
+step("Run net examples")
+client = net.client()
+#client.download_file("https://github.com/jasal82/metabuild/releases/download/v0.3.6/mb-v0.3.6-x86_64-unknown-linux-musl", "mb.test")
+
+step("Run http examples")
+client = http.client()
+r = client.get("http://www.google.de").call()
+print(r.status())
+
+step("Run regex examples")
+r = re.regex("[0-9]+")
+t = "7.5.1-beta"
+ms = r.find_all(t)
+for m in ms
+    print(m.text())
+
+r = re.regex("([0-9]+)\\.([0-9]+)\\.([0-9]+)")
+m = r.find(t)
+if m
+    print(m.text())
+
+r = re.regex("([0-9]+)\\.([0-9]+)\\.([0-9]+)-(?<suffix>[a-z]+)")
+t = "8.3.2-alpha"
+c = r.captures(t)
+print(c.get(1).text())
+if c
+    print(c.get(1).text())
+    print(c.get(2).text())
+    print(c[3].text())
+    print(c.get(4).text())
+    print(c.get("suffix").text())
+    print(c["suffix"].text())
+
+r = re.regex("(?<y>\\d{4})-(?<m>\\d{2})-(?<d>\\d{2})")
+before = "1973-01-05, 1975-08-25 and 1980-10-18"
+after = r.replace_all(before, "\$m/\$d/\$y")
+print(after)
+
+r = re.regex("Homer (?<middle>.)\\. Simpson")
+t = "Homer J. Simpson"
+m = r.captures(t)
+if m
+    print(m.get("middle").text())
+
+step("Run io_ext examples")
+l = io_ext.glob("**/*.rs")
+print(l)
+
+#io_ext.copy_glob("**/*.rn", "rn_inventory")
+
+tf = io_ext.temp_file()
+print(tf.path())
+
+td = io_ext.temp_dir()
+print(td)
+io_ext.mkdirs(td.path())
+io_ext.copy("tasks.rn", io.extend_path(td.path(), "tasks.rn"))
+io_ext.copy_dir("tests", io.extend_path(td.path(), "tests"))
+g = io_ext.glob(io.extend_path(td.path(), "*"))
+print(g)
+
+step("Run template examples")
+m = { test: 42, name: "Homer" }
+
+t = utils.template("I say {{ test }} to {{ name }}", m)
+print(t)
+
+step("Run base64 examples")
+t = "Hello world!"
+b = utils.encode_base64(t)
+print(b)
+d = utils.decode_base64(b)
+print(d)
+s = string.from_bytes(d)
+print(s)

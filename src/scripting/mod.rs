@@ -1,113 +1,81 @@
-use rune::ast::Spanned;
-use rune::termcolor::{ColorChoice, StandardStream};
-use rune::{
-    compile, compile::{FileSourceLoader, Item, SourceLoader},
-    Context, Diagnostics, Source, Sources, Value, Vm
-};
-use anyhow::{anyhow, Context as _};
-//use std::io::Write;
-use std::path::Path;
-use std::sync::Arc;
+use anyhow::{Context, Error};
+use koto::Koto;
+use std::fs;
+use std::path::{Path, PathBuf};
 
-mod api;
+mod koto_api;
 
-#[derive(Default)]
-pub struct CustomSourceLoader {
-    file_loader: FileSourceLoader,
+struct DynamicModule {
+    name: String,
+    file: PathBuf,
 }
 
-impl CustomSourceLoader {
-    pub fn new() -> Self {
-        Self {
-            file_loader: FileSourceLoader::new(),
-        }
-    }
+fn add_common_prelude(koto: &mut Koto) {
+    let prelude = koto.prelude();
+    prelude.add_map("io_ext", koto_api::io::make_module());
+    prelude.add_map("http", koto_api::http::make_module());
+    prelude.add_map("json", koto_json::make_module());
+    prelude.add_map("net", koto_api::net::make_module());
+    prelude.add_map("re", koto_api::re::make_module());
+    prelude.add_map("sys", koto_api::sys::make_module());
+    prelude.add_map("tempfile", koto_tempfile::make_module());
+    prelude.add_map("toml", koto_toml::make_module());
+    prelude.add_map("utils", koto_api::utils::make_module());
+    prelude.add_map("yaml", koto_yaml::make_module());
 }
 
-impl SourceLoader for CustomSourceLoader {
-    fn load(&mut self, root: &Path, item: &Item, span: &dyn Spanned) -> compile::Result<Source> {
-        // Try the default loader first. If that fails, try to use the module
-        // path as root instead. We have to add a dummy file name to the path
-        // because the FileSourceLoader pops the last path component off.
-        match self.file_loader.load(root, item, &span) {
-            Ok(source) => Ok(source),
-            Err(_) => {
-                let module_path = Path::new(".mb/modules/dummy");
-                self.file_loader.load(module_path, item, &span)
-            }
-        }
+fn load_dynamic_modules(koto: &mut Koto, modules: &[DynamicModule]) -> Result<(), anyhow::Error> {
+    for module in modules {
+        println!("Loading module {}", module.name);
+        let mut runtime = Koto::new();
+        add_common_prelude(&mut runtime);
+        runtime
+            .set_script_path(Some(module.file.clone()))
+            .expect("Failed to set script path");
+        let script: String = fs::read_to_string(&module.file)?;
+        runtime
+            .compile_and_run(&script)
+            .map_err(koto_error_to_anyhow)
+            .context(format!("Error while compiling {}", module.name))?;
+        koto.prelude()
+            .add_map(&module.name, runtime.exports().clone());
     }
-}
-
-pub fn run_tasks(script_file: &Path, task: &str, args: &[String], warn: bool) -> Result<(), anyhow::Error> {
-    let mut context = Context::with_default_modules()?;
-    context.install(&rune_modules::json::module(true)?)?;
-    context.install(&rune_modules::toml::module(true)?)?;
-    context.install(&rune_modules::toml::de::module(true)?)?;
-    context.install(&rune_modules::toml::ser::module(true)?)?;
-    context.install(&api::arch::module()?)?;
-    context.install(&api::cmd::module()?)?;
-    context.install(&api::fs::module()?)?;
-    context.install(&api::git::module()?)?;
-    context.install(&api::http::module()?)?;
-    context.install(&api::net::module()?)?;
-    context.install(&api::re::module()?)?;
-    context.install(&api::str::module()?)?;
-    context.install(&api::sys::module()?)?;
-    //context.install(&api::toml::module()?)?;
-    context.install(&api::yaml::module()?)?;
-
-    let mut sources = Sources::new();
-    sources.insert(Source::from_path(script_file).with_context(|| anyhow!("cannot read file: {}", script_file.display()))?)?;
-
-    let mut diagnostics = match warn {
-        true => Diagnostics::new(),
-        false => Diagnostics::without_warnings(),
-    };
-
-    let mut source_loader = CustomSourceLoader::new();
-
-    let mut options = rune::Options::default();
-    options.debug_info(true);
-
-    let result = rune::prepare(&mut sources)
-        .with_context(&context)
-        .with_diagnostics(&mut diagnostics)
-        .with_source_loader(&mut source_loader)
-        .with_options(&options)
-        .build();
-
-    if !diagnostics.is_empty() {
-        let mut writer = StandardStream::stderr(ColorChoice::Always);
-        diagnostics.emit(&mut writer, &sources)?;
-    }
-
-    let unit = result?;
-
-    let mut vm = Vm::new(Arc::new(context.runtime()?), Arc::new(unit));
-    let mut execution = vm.execute(
-        [task],
-        (args.to_vec(),),
-    )?;
-    let result = execution.complete().into_result();
-    let _errored = match result {
-        Ok(value) => {
-            match value {
-                Value::EmptyTuple => None,
-                _ => {
-                    vm.with(|| {
-                        println!("{:?}", value);
-                    });
-                    None
-                }
-            }
-        },
-        Err(error) => {
-            let mut writer: StandardStream = StandardStream::stderr(ColorChoice::Always);
-            error.emit(&mut writer, &sources)?;
-            Some(error)
-        }
-    };
 
     Ok(())
+}
+
+pub fn run_tasks(script_file: &Path) -> Result<(), anyhow::Error> {
+    let mut koto = Koto::new();
+    add_common_prelude(&mut koto);
+
+    let mod_files = glob::glob("./.mb/**/mod.koto")?;
+    let mut modules = vec![];
+    for mf in mod_files {
+        let mf = mf?;
+        let mod_dir = mf.parent().unwrap();
+        let mod_name = mod_dir.file_name().unwrap().to_str().unwrap();
+        modules.push(DynamicModule {
+            name: mod_name.to_string(),
+            file: mf,
+        });
+    }
+
+    load_dynamic_modules(&mut koto, &modules).context("Error while loading dynamic modules")?;
+
+    koto.set_script_path(Some(script_file.to_path_buf()))
+        .expect("Failed to set script path");
+    let script = fs::read_to_string(script_file)?;
+
+    koto.compile(&script)
+        .map_err(koto_error_to_anyhow)
+        .context("Error while compiling script")?;
+    koto.run()
+        .map_err(koto_error_to_anyhow)
+        .context("Error while running script")?;
+    Ok(())
+}
+
+fn koto_error_to_anyhow(e: koto::Error) -> anyhow::Error {
+    // koto::Error doesn't implement Send, which anyhow requires, so render the error to a String
+    Error::msg(e.to_string())
 }
