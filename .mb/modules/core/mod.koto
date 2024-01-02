@@ -1,0 +1,4 @@
+export version = "1.0.0"
+
+export join = |list, separator|
+    list.intersperse(separator).to_string()
