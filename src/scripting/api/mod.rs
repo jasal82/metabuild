@@ -1,10 +1,9 @@
 pub mod arch;
 pub mod cmd;
-pub mod fs;
 pub mod git;
 pub mod http;
+pub mod io;
 pub mod net;
 pub mod re;
-pub mod str;
 pub mod sys;
-pub mod yaml;
+pub mod utils;

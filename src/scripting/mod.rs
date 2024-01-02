@@ -3,7 +3,7 @@ use koto::Koto;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-mod koto_api;
+mod api;
 
 struct DynamicModule {
     name: String,
@@ -12,16 +12,18 @@ struct DynamicModule {
 
 fn add_common_prelude(koto: &mut Koto) {
     let prelude = koto.prelude();
-    prelude.add_map("arch", koto_api::arch::make_module());
-    prelude.add_map("io_ext", koto_api::io::make_module());
-    prelude.add_map("http", koto_api::http::make_module());
+    prelude.add_map("arch", api::arch::make_module());
+    prelude.add_map("cmd", api::cmd::make_module());
+    prelude.add_map("git", api::git::make_module());
+    prelude.add_map("http", api::http::make_module());
+    prelude.add_map("io_ext", api::io::make_module());
     prelude.add_map("json", koto_json::make_module());
-    prelude.add_map("net", koto_api::net::make_module());
-    prelude.add_map("re", koto_api::re::make_module());
-    prelude.add_map("sys", koto_api::sys::make_module());
+    prelude.add_map("net", api::net::make_module());
+    prelude.add_map("re", api::re::make_module());
+    prelude.add_map("sys", api::sys::make_module());
     prelude.add_map("tempfile", koto_tempfile::make_module());
     prelude.add_map("toml", koto_toml::make_module());
-    prelude.add_map("utils", koto_api::utils::make_module());
+    prelude.add_map("utils", api::utils::make_module());
     prelude.add_map("yaml", koto_yaml::make_module());
 }
 
