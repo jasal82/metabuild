@@ -139,8 +139,18 @@ pub fn make_module() -> KMap {
         unexpected => type_error_with_slice("(path: string)", unexpected),
     });
     result.add_fn("which", |ctx: &mut CallContext<'_>| match ctx.args() {
-        [Value::Str(executable)] => Ok(which(executable.as_str()).map_err(|e| make_runtime_error!(format!("Failed to find executable path: {e}")))?.into()),
+        [Value::Str(executable)] => match which(executable.as_str()) {
+            Ok(path) => Ok(path.into()),
+            Err(_) => Ok(Value::Null)
+        },
         unexpected => type_error_with_slice("(executable: string)", unexpected),
+    });
+    result.add_fn("which_in", |ctx: &mut CallContext<'_>| match ctx.args() {
+        [Value::Str(executable), Value::Str(paths)] => match which_in(executable.as_str(), paths.as_str()) {
+            Ok(path) => Ok(path.into()),
+            Err(_) => Ok(Value::Null)
+        },
+        unexpected => type_error_with_slice("(executable: string, paths: string)", unexpected),
     });
     result
 }
@@ -214,6 +224,12 @@ pub fn absolute(path: &str) -> std::io::Result<String> {
 
 pub fn which(executable: &str) -> std::io::Result<String> {
     which::which(executable)
+        .map(|p| p.to_str().unwrap().to_string())
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::NotFound, e))
+}
+
+pub fn which_in(executable: &str, paths: &str) -> std::io::Result<String> {
+    which::which_in(executable, Some(paths), &std::env::current_dir()?)
         .map(|p| p.to_str().unwrap().to_string())
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::NotFound, e))
 }

@@ -2,3 +2,16 @@ export version = "1.0.0"
 
 export join = |list, separator|
     list.intersperse(separator).to_string()
+
+export run = |command, args|
+    cmd.new(command).args(args).execute()
+
+export shell = |command|
+    args = command.split(" ").to_list()
+    cmd.new(args[0]).args(args[1..]).shell().execute()
+
+export path_split = |path|
+    if os.name() == "windows"
+        path.split("\\").to_list()
+    else
+        path.split("/").to_list()

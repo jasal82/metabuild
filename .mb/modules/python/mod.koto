@@ -1,1 +1,53 @@
 export version = "1.0.0"
+
+build_binary_dir = |path|
+    match os.name()
+        "windows" then io.extend_path(io_ext.absolute(path), "Scripts")
+        unmatched then io.extend_path(io_ext.absolute(path), "bin")
+
+find_interpreter_global = ||
+    return io_ext.which("python3") or io_ext.which("python")
+
+find_interpreter_local = |path|
+    return io_ext.which_in("python3", path) or io_ext.which_in("python", path)
+
+export venv = |path|
+    path: path
+    bin_dir: build_binary_dir(path)
+    interpreter_global: find_interpreter_global()
+    interpreter_venv: find_interpreter_local(build_binary_dir(path))
+    suppress_output: false
+
+    quiet: |value|
+        self.suppress_output = value
+    
+    exists: ||
+        io_ext.is_dir(self.path) and self.interpreter_venv != null
+    
+    init: ||
+        core.run(self.interpreter_global, ["-m", "venv", self.path])
+        self.interpreter_venv = find_interpreter_venv(self.path)
+    
+    run: |command|
+        c = cmd.new(command[0]).args(command[1..]).env_remove("PYTHONHOME")
+        entry_separator = match os.name()
+            "windows" then ";"
+            _ then ":"
+        path_variable = sys.env().contains_key("Path") and "Path" or "PATH"
+        c.env(
+            path_variable,
+            self.bin_dir + entry_separator + sys.env().get(path_variable)
+        )
+        if self.suppress_output
+            c.stdout("null")
+            c.stderr("null")
+        c.execute()
+    
+    install_requirements: |file|
+        self.run([self.interpreter_venv, "-m", "pip", "install", "-r", file])
+    
+    python: |command|
+        self.run([self.interpreter_venv, "-c", command])
+
+    pip: |command|
+        self.run([self.interpreter_venv, "-m", "pip", command])

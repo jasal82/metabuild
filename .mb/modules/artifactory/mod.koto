@@ -1,1 +1,48 @@
 export version = "1.0.0"
+
+export client = |url, token|
+    url: url
+    token: token
+
+    get: |url|
+        req = http.client().get(url).set("X-JFrog-Art-Api", self.token)
+        res = req.call()
+        json.from_string(res.into_string())
+    
+    put: |url, data|
+        req = http.client().put(url).set("X-JFrog-Art-Api", self.token)
+        if data
+            req.send_string(data)
+        res = req.call()
+        json.from_string(res.into_string())
+    
+    post: |url, data|
+        req = http.client().post(url).set("X-JFrog-Art-Api", self.token)
+        if data
+            req.send_string(data)
+        res = req.call()
+        json.from_string(res.into_string())
+    
+    delete: |url|
+        http.client().delete(url).set("X-JFrog-Art-Api", self.token).call()
+    
+    item_info: |repo_key, item_path|
+        self.get("${self.url}/api/storage/$repo_key/$item_path")
+    
+    file_statistics: |repo_key, item_path|
+        self.get("${self.url}/api/storage/$repo_key/${item_path}?stats")
+    
+    item_properties: |repo_key, item_path|
+        self.get("${self.url}/api/storage/$repo_key/${item_path}?properties")
+    
+    create_directory: |repo_key, item_path|
+        self.put("${self.url}/api/storage/$repo_key/${item_path}", None)
+    
+    delete_item: |repo_key, item_path|
+        self.delete("${self.url}/$repo_key/$item_path")
+    
+    copy_item: |src_repo_key, src_item_path, dst_repo_key, dst_item_path|
+        self.post("${self.url}/api/copy/$src_repo_key/$src_item_path?to=/$dst_repo_key/$dst_item_path", None)
+    
+    move_item: |src_repo_key, src_item_path, dst_repo_key, dst_item_path|
+        self.post("${self.url}/api/move/$src_repo_key/$src_item_path?to=/$dst_repo_key/$dst_item_path", None)

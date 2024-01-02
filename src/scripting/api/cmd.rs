@@ -231,7 +231,7 @@ impl Cmd {
         let mut cmd = self.build_cmd();
         let output = cmd
             .output()
-            .unwrap_or_else(|_| panic!("Failed to execute command: {:?}", self.0.borrow().args));
+            .map_err(|e| make_runtime_error!(format!("Failed to execute command: {:?}", e)))?;
         Ok((output.status.code().unwrap() as i64,
             String::from_utf8(output.stdout).unwrap(),
             String::from_utf8(output.stderr).unwrap(),
