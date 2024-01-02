@@ -1424,7 +1424,6 @@ dependencies = [
  "lazy_static",
  "once_cell",
  "path-absolutize",
- "path-slash",
  "regex",
  "rustls",
  "rustls-native-certs",
@@ -1660,12 +1659,6 @@ checksum = "9a81540d94551664b72b72829b12bd167c73c9d25fbac0e04fafa8023f7e4901"
 dependencies = [
  "once_cell",
 ]
-
-[[package]]
-name = "path-slash"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e91099d4268b0e11973f036e885d652fb0b21fedcf69738c627f94db6a44f42"
 
 [[package]]
 name = "pbkdf2"

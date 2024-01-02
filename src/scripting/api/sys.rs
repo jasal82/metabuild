@@ -1,54 +1,7 @@
 use colored::Colorize;
-use rune::runtime::{Object, Shared, Value};
-use rune::{ContextError, Module};
+use koto::prelude::*;
 
-#[rune::function]
-pub fn is_windows() -> bool {
-    cfg!(target_os = "windows")
-}
-
-#[rune::function]
-pub fn is_mingw() -> bool {
-    cfg!(target_os = "windows") && std::env::vars().any(|(k, _)| k == "MSYSTEM")
-}
-
-#[rune::function]
-pub fn is_linux() -> bool {
-    cfg!(target_os = "linux")
-}
-
-#[rune::function]
-pub fn args() -> Vec<String> {
-    std::env::args().collect()
-}
-
-#[rune::function]
-pub fn env() -> Object {
-    let mut map = Object::new();
-    std::env::vars().for_each(|(k, v)| {
-        if let Ok(k) = rune::alloc::String::try_from(k) {
-            if let Ok(v) = rune::alloc::String::try_from(v) {
-                if let Ok(v) = Shared::new(v) {
-                    let _ = map.insert(k, Value::from(v));
-                }
-            }
-        }
-    });
-    map
-}
-
-#[rune::function]
-pub fn write(s: &str) {
-    print!("{s}");
-}
-
-#[rune::function]
-pub fn writeln(s: &str) {
-    println!("{s}");
-}
-
-#[rune::function]
-pub fn write_colored(color: &str, style: &str, s: &str) {
+fn write_colored(color: &str, style: &str, s: &str) {
     let colored = match style {
         "bold" => s.bold(),
         "dimmed" => s.dimmed(),
@@ -64,8 +17,7 @@ pub fn write_colored(color: &str, style: &str, s: &str) {
     print!("{colored}");
 }
 
-#[rune::function]
-pub fn writeln_colored(color: &str, style: &str, s: &str) {
+fn writeln_colored(color: &str, style: &str, s: &str) {
     let colored = match style {
         "bold" => s.bold(),
         "dimmed" => s.dimmed(),
@@ -81,18 +33,45 @@ pub fn writeln_colored(color: &str, style: &str, s: &str) {
     println!("{colored}");
 }
 
-pub fn module() -> Result<Module, ContextError> {
-    let mut module = Module::with_crate("sys")?;
+pub fn make_module() -> KMap {
+    let result = KMap::with_type("sys");
 
-    module.function_meta(is_windows)?;
-    module.function_meta(is_mingw)?;
-    module.function_meta(is_linux)?;
-    module.function_meta(args)?;
-    module.function_meta(env)?;
-    module.function_meta(write)?;
-    module.function_meta(writeln)?;
-    module.function_meta(write_colored)?;
-    module.function_meta(writeln_colored)?;
+    result.add_fn("is_windows", |_| Ok(cfg!(target_os = "windows").into()));
+    result.add_fn("is_mingw", |_| {
+        Ok((cfg!(target_os = "windows") && std::env::vars().any(|(k, _)| k == "MSYSTEM")).into())
+    });
+    result.add_fn("is_linux", |_| Ok(cfg!(target_os = "linux").into()));
+    result.add_fn("args", |_| {
+        let list = std::env::args()
+            .map(|a| Value::Str(a.as_str().into()))
+            .collect::<ValueVec>();
+        Ok(Value::List(KList::with_data(list)))
+    });
+    result.add_fn("env", |_| {
+        let map = KMap::with_capacity(std::env::vars().count());
+        for (k, v) in std::env::vars() {
+            map.add_value(&k, Value::Str(v.as_str().into()));
+        }
+        Ok(Value::Map(map))
+    });
+    result.add_fn("write_colored", |ctx| match ctx.args() {
+        [Value::Str(color), Value::Str(style), Value::Str(s)] => {
+            write_colored(color, style, s);
+            Ok(Value::Null)
+        }
+        unexpected => {
+            type_error_with_slice("(color: string, style: string, s: string)", unexpected)
+        }
+    });
+    result.add_fn("writeln_colored", |ctx| match ctx.args() {
+        [Value::Str(color), Value::Str(style), Value::Str(s)] => {
+            writeln_colored(color, style, s);
+            Ok(Value::Null)
+        }
+        unexpected => {
+            type_error_with_slice("(color: string, style: string, s: string)", unexpected)
+        }
+    });
 
-    Ok(module)
+    result
 }
