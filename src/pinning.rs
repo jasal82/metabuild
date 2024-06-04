@@ -12,7 +12,7 @@ pub fn pinned_version() -> Option<semver::Version> {
         let version_file = path.join(".mb-version");
         if version_file.exists() {
             let content = std::fs::read_to_string(&version_file).unwrap();
-            match semver::Version::parse(&content) {
+            match semver::Version::parse(&content.trim()) {
                 Ok(version) => {
                     crate::logging::info(format!(
                         "Version pinned to {} by .mb-version file in {:?}",
