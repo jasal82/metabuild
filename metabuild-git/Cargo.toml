@@ -1,0 +1,8 @@
+[package]
+name = "metabuild-git"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+git2 = "0.18.3"
+auth-git2 = "0.5.3"

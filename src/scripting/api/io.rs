@@ -190,7 +190,7 @@ pub fn copy_glob(pattern: &str, dst: &str) -> Result<Value> {
         let ft = entry
             .symlink_metadata()
             .map(|m| m.file_type())
-            .map_err(|e| make_runtime_error!("Failed to fetch file metadata: {e}"))?;
+            .map_err(|e| make_runtime_error!(format!("Failed to fetch file metadata: {e}")))?;
         if ft.is_dir() {
             copy_dir_internal(&entry, &Path::new(dst).join(&entry))
                 .map_err(|e| make_runtime_error!(format!("Failed to copy directory: {e}")))?;

@@ -1,36 +1,76 @@
+use crate::commands::config::ConfigData;
 use crate::git;
 use crate::net;
+use anyhow::Error;
+use metabuild_resolver::{inventory::Inventory, solve};
 use std::collections::HashMap;
 use std::path::Path;
 
+fn parse_dependency_table(dependencies: &toml::Table) -> Result<HashMap<String, semver::VersionReq>, Error> {
+    let mut map = HashMap::new();
+    for (k, v) in dependencies {
+        map.insert(k.to_string(), semver::VersionReq::parse(v.as_str().unwrap())?);
+    }
+    Ok(map)
+}
+
+fn install_module(module_base_path: &Path, name: &str, url: &str, version: &semver::Version) -> Result<(), Error> {
+    let module_path = module_base_path.join(name);
+    let repo = git::clone(url, module_path.as_path())?;
+    git::checkout(&repo, version.to_string().as_str())
+}
+
 pub fn install_script_modules(
-    config: &toml::Table,
-    username: Option<&str>,
-    password: Option<&str>,
-) {
-    println!("Installing script-modules...");
-    for (mod_pkg_name, v) in config["script-modules"].as_table().unwrap() {
-        println!("  [*] {mod_pkg_name}");
-        let entry = v.as_table().unwrap();
-        let url = entry["repo"].as_str().unwrap();
-        let refname = entry["ref"].as_str().unwrap();
-        let mod_pkg_dir = Path::new(".mb").join("modules").join(mod_pkg_name);
-        if mod_pkg_dir.exists() {
-            std::fs::remove_dir_all(mod_pkg_dir.as_path()).unwrap_or_else(|_| {
-                panic!(
-                    "Failed to clear mod package dir for module {}",
-                    mod_pkg_name
-                )
-            });
+    config: &ConfigData,
+    manifest: &toml::Table,
+) -> Result<(), Error> {
+    let module_base_path = Path::new(".mb").join("modules");
+    if module_base_path.exists() {
+        std::fs::remove_dir_all(&module_base_path)?;
+    }
+    std::fs::create_dir_all(&module_base_path)?;
+
+    let index_url = manifest.get("registries")
+        .and_then(toml::Value::as_table)
+        .and_then(|registries| registries.get("default"))
+        .and_then(toml::Value::as_str)
+        .or(config.index_url.as_ref().map(String::as_str))
+        .expect("No index URL specified in project or global config");
+
+    if index_url.starts_with("http") {
+        return Err(anyhow::anyhow!("HTTP(S) index URLs are currently not supported"));
+    }
+
+    let dependency_table = manifest.get("dependencies")
+        .and_then(toml::Value::as_table);
+
+    if let Some(dependency_table) = dependency_table {
+        println!("Using index {index_url}");
+        println!("Updating list of available packages");
+        let mut inventory = Inventory::new(index_url, Path::new(".mb").join("cache").as_path())?;
+        inventory.update_cache()?;
+        let dependencies = parse_dependency_table(dependency_table)?;
+        println!("Installing dependencies");
+        match solve(&inventory, dependencies) {
+            Ok(result) => {
+                for (mod_name, mod_version) in result {
+                    println!("  [*] {mod_name}/{mod_version}");
+                    let mod_url = inventory.index().get_url(&mod_name)?;
+                    install_module(module_base_path.as_path(), mod_name.as_str(), mod_url, &mod_version)?;
+                }
+                Ok(())
+            },
+            Err(metabuild_resolver::SolverError::Unsolvable(reason)) => {
+                println!("{}", reason);
+                Err(anyhow::anyhow!("Cannot resolve script module dependencies"))
+            },
+            Err(metabuild_resolver::SolverError::Cancelled) => {
+                Err(anyhow::anyhow!("Solver was cancelled"))
+            }
         }
-        std::fs::create_dir_all(mod_pkg_dir.as_path()).unwrap_or_else(|_| {
-            panic!(
-                "Failed to create mod package dir for module {}",
-                mod_pkg_name
-            )
-        });
-        let repo = git::clone(url, mod_pkg_dir.as_path(), username, password).unwrap();
-        git::checkout_ref(&repo, refname).unwrap_or_else(|_| panic!("Failed to change ref"));
+    } else {
+        println!("No dependencies specified");
+        Ok(())
     }
 }
 
@@ -79,7 +119,7 @@ fn install_os_executables(config: &toml::Table) {
 
 pub fn install_executables(config: &toml::Table) {
     if config.contains_key("executables") {
-        println!("Installing executables...");
+        println!("Installing executables");
         install_os_executables(config);
     }
 }

@@ -1,0 +1,24 @@
+[package]
+name = "metabuild-resolver"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+auth-git2 = "0.5.3"
+indexmap = { version = "2.2.6", features = ["serde"] }
+git2 = "0.18.3"
+metabuild-git = { path = "../metabuild-git" }
+resolvo = "0.4.1"
+toml = "0.8.13"
+semver = "1.0.23"
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.117"
+tracing = "0.1.40"
+itertools = "0.13.0"
+anyhow = "1.0.86"
+reqwest = "0.12.4"
+dirs = "5.0.1"
+yaml-rust = "0.4.5"
+tempfile = "3.10.1"

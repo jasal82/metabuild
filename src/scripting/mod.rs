@@ -51,7 +51,7 @@ pub fn run_tasks(script_file: &Path) -> Result<(), anyhow::Error> {
     let mut koto = Koto::new();
     add_common_prelude(&mut koto);
 
-    let mod_files = glob::glob("./.mb/**/mod.koto")?;
+    let mod_files = glob::glob("./.mb/modules/**/mod.koto")?;
     let mut modules = vec![];
     for mf in mod_files {
         let mf = mf?;

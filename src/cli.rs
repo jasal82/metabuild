@@ -13,10 +13,6 @@ pub enum Commands {
     Install {
         #[arg(short, long)]
         file: Option<PathBuf>,
-        #[arg(short, long)]
-        username: Option<String>,
-        #[arg(short, long)]
-        password: Option<String>,
     },
     Run {
         #[arg(short, long)]
@@ -39,6 +35,11 @@ pub enum ConfigCommands {
     },
     Get {
         key: String,
+    },
+    Remove {
+        key: String,
+        #[arg(short, long, default_value = "false")]
+        global: bool,
     },
     List,
 }

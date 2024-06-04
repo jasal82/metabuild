@@ -5,7 +5,6 @@ use toml::Table;
 
 mod cli;
 mod commands;
-mod deps;
 mod git;
 mod logging;
 mod net;
@@ -92,21 +91,17 @@ pub fn main() -> Result<(), anyhow::Error> {
     match &cli.command {
         Commands::Install {
             file,
-            username,
-            password,
         } => {
-            let dependency_config =
-                parse_config(file.as_ref().unwrap_or(&PathBuf::from("mb.toml")));
+            let manifest = parse_config(file.as_ref().unwrap_or(&PathBuf::from("mb.toml")));
             commands::install::install_script_modules(
-                &dependency_config,
-                username.as_deref(),
-                password.as_deref(),
-            );
-            commands::install::install_executables(&dependency_config);
+                &config.merged,
+                &manifest
+            )?;
+            commands::install::install_executables(&manifest);
             Ok(())
         }
         Commands::Run { file } => {
-            if let Err(e) = scripting::run_tasks(file.as_ref().unwrap_or(&PathBuf::from("mb.rn"))) {
+            if let Err(e) = scripting::run_tasks(file.as_ref().unwrap_or(&PathBuf::from("mb.koto"))) {
                 Cli::command().print_help().unwrap();
                 Err(e)
             } else {
@@ -116,7 +111,12 @@ pub fn main() -> Result<(), anyhow::Error> {
         Commands::Update => commands::update::update(),
         Commands::Config { command } => match &command {
             ConfigCommands::Set { key, value, global } => config.set(key, value, to_scope(*global)),
-            ConfigCommands::Get { key } => config.get(key),
+            ConfigCommands::Get { key } => { config.get(key).map(|v| {
+                    println!("{}", v);
+                    ()
+                })
+            },
+            ConfigCommands::Remove { key, global } => config.remove(key, to_scope(*global)),
             ConfigCommands::List => config.list(),
         },
     }
