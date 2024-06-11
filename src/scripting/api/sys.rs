@@ -8,7 +8,7 @@ fn write_colored(color: &str, style: &str, s: &str) {
         "italic" => s.italic(),
         "underline" => s.underline(),
         "blink" => s.blink(),
-        "reverse" => s.reverse(),
+        "reversed" => s.reversed(),
         "hidden" => s.hidden(),
         "strikethrough" => s.strikethrough(),
         _ => s.normal(),
@@ -24,7 +24,7 @@ fn writeln_colored(color: &str, style: &str, s: &str) {
         "italic" => s.italic(),
         "underline" => s.underline(),
         "blink" => s.blink(),
-        "reverse" => s.reverse(),
+        "reversed" => s.reversed(),
         "hidden" => s.hidden(),
         "strikethrough" => s.strikethrough(),
         _ => s.normal(),
@@ -43,30 +43,30 @@ pub fn make_module() -> KMap {
     result.add_fn("is_linux", |_| Ok(cfg!(target_os = "linux").into()));
     result.add_fn("args", |_| {
         let list = std::env::args()
-            .map(|a| Value::Str(a.as_str().into()))
-            .collect::<ValueVec>();
-        Ok(Value::List(KList::with_data(list)))
+            .map(|a| KValue::Str(a.as_str().into()))
+            .collect();
+        Ok(KValue::List(KList::with_data(list)))
     });
     result.add_fn("env", |_| {
         let map = KMap::with_capacity(std::env::vars().count());
         for (k, v) in std::env::vars() {
-            map.add_value(&k, Value::Str(v.as_str().into()));
+            map.insert(KString::from(k), KValue::Str(v.as_str().into()));
         }
-        Ok(Value::Map(map))
+        Ok(KValue::Map(map))
     });
     result.add_fn("write_colored", |ctx| match ctx.args() {
-        [Value::Str(color), Value::Str(style), Value::Str(s)] => {
+        [KValue::Str(color), KValue::Str(style), KValue::Str(s)] => {
             write_colored(color, style, s);
-            Ok(Value::Null)
+            Ok(KValue::Null)
         }
         unexpected => {
             type_error_with_slice("(color: string, style: string, s: string)", unexpected)
         }
     });
     result.add_fn("writeln_colored", |ctx| match ctx.args() {
-        [Value::Str(color), Value::Str(style), Value::Str(s)] => {
+        [KValue::Str(color), KValue::Str(style), KValue::Str(s)] => {
             writeln_colored(color, style, s);
-            Ok(Value::Null)
+            Ok(KValue::Null)
         }
         unexpected => {
             type_error_with_slice("(color: string, style: string, s: string)", unexpected)

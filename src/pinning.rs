@@ -1,3 +1,4 @@
+use anyhow::Error;
 use std::collections::HashMap;
 #[cfg(unix)]
 use {std::fs::Permissions, std::os::unix::fs::PermissionsExt};
@@ -40,12 +41,12 @@ pub fn running_on_buildserver() -> bool {
     std::env::var("GITLAB_CI").is_ok()
 }
 
-pub fn download_and_run(version: &semver::Version) {
+pub fn download_and_run(version: &semver::Version) -> Result<(), Error> {
     crate::logging::info(format!("Downloading metabuild version {}", version));
-    let mut path = std::env::current_dir().unwrap();
+    let mut path = std::env::current_dir()?;
     path.push(".mb");
     path.push("bin");
-    std::fs::create_dir_all(&path).unwrap();
+    std::fs::create_dir_all(&path)?;
     path.push("mb");
     if !path.exists() {
         let target = get_target();
@@ -57,7 +58,7 @@ pub fn download_and_run(version: &semver::Version) {
         let url = format!(
             r#"https://github.com/jasal82/metabuild/releases/download/v{version}/mb-v{version}-{target}{suffix}"#
         );
-        let _ = crate::net::download_file(&url, &path, &HashMap::new());
+        crate::net::download_file(&url, &path, &HashMap::new())?;
         #[cfg(unix)]
         std::fs::set_permissions(&path, Permissions::from_mode(0o755)).unwrap();
     }
@@ -65,6 +66,6 @@ pub fn download_and_run(version: &semver::Version) {
     crate::logging::info(format!("Running pinned metabuild version {}", version));
     let mut command = std::process::Command::new(&path);
     command.args(std::env::args().skip(1));
-    let status = command.status().unwrap();
-    std::process::exit(status.code().unwrap());
+    let status = command.status()?;
+    std::process::exit(status.code().unwrap_or(0));
 }

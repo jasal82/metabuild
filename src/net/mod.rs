@@ -9,12 +9,15 @@ pub fn download_file(
 ) -> Result<(), anyhow::Error> {
     let agent = ureq::builder()
         .tls_config(Arc::new(crate::TLS_CONFIG.clone()))
+        .try_proxy_from_env(true)
         .build();
     let mut body = agent.get(url);
     for (key, value) in headers {
         body = body.set(key, value);
     }
+    println!("Body {:?}", body);
     let res = body.call()?;
+    println!("Res {}", res.status());
     std::io::copy(&mut res.into_reader(), &mut std::fs::File::create(file)?)?;
     Ok(())
 }

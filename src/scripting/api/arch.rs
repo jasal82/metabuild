@@ -1,60 +1,68 @@
 use flate2::{read::GzDecoder, write::GzEncoder};
-use koto::prelude::*;
-use koto::runtime::Result;
-use std::cell::RefCell;
+use koto::{derive::*, prelude::*, PtrMut, Result};
 use std::fs::File;
-use std::rc::Rc;
+use std::path::Path;
 use tar::{Archive, Builder};
 use zip::ZipWriter;
 
-#[derive(Clone)]
+#[derive(Clone, KotoCopy, KotoType)]
 struct TarGz {
-    inner: Rc<RefCell<Option<Builder<GzEncoder<File>>>>>,
+    inner: PtrMut<Builder<GzEncoder<File>>>,
     needs_finish: bool,
 }
 
+#[koto_impl]
 impl TarGz {
-    pub fn create(file: &str) -> Result<Self> {
-        let f = File::create(file)
-            .map_err(|e| make_runtime_error!(format!("Failed to create file: {e}")))?;
+    pub fn create(file: KString) -> Result<Self> {
+        let f = File::create(file.as_str())
+            .map_err(|e| koto::runtime::Error::from(format!("Failed to create file: {e}")))?;
         let enc: GzEncoder<File> = GzEncoder::new(f, flate2::Compression::default());
         Ok(Self {
-            inner: Rc::new(Some(Builder::new(enc)).into()),
+            inner: Builder::new(enc).into(),
             needs_finish: true,
         })
     }
 
-    pub fn append_file(&mut self, arch_path: &str, file: &str) -> Result<Value> {
-        let mut f: File = File::open(file)
-            .map_err(|e| make_runtime_error!(format!("Failed to open file: {e}")))?;
-        self.inner
-            .borrow_mut()
-            .as_mut()
-            .unwrap()
-            .append_file(arch_path, &mut f)
-            .map_err(|e| make_runtime_error!(format!("Failed to append file: {e}")))?;
-        Ok(Value::Null)
+    #[koto_method]
+    pub fn append_file(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [KValue::Str(arch_path), KValue::Str(file)] => {
+                let mut f: File = File::open(file.as_str())
+                    .map_err(|e| koto::runtime::Error::from(format!("Failed to open file: {e}")))?;
+                ctx.instance_mut()?
+                    .inner
+                    .borrow_mut()
+                    .append_file(arch_path.as_str(), &mut f)
+                    .map_err(|e| koto::runtime::Error::from(format!("Failed to append file: {e}")))?;
+                Ok(KValue::Null)
+            }
+            unexpected => type_error_with_slice("(arch_path: string, file: string)", unexpected),
+        }
     }
 
-    pub fn append_dir_all(&mut self, arch_path: &str, path: &str) -> Result<Value> {
-        self.inner
-            .borrow_mut()
-            .as_mut()
-            .unwrap()
-            .append_dir_all(arch_path, path)
-            .map_err(|e| make_runtime_error!(format!("Failed to append dir: {e}")))?;
-        Ok(Value::Null)
+    #[koto_method]
+    pub fn append_dir_all(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [KValue::Str(arch_path), KValue::Str(path)] => {
+                ctx.instance_mut()?
+                    .inner
+                    .borrow_mut()
+                    .append_dir_all(arch_path.as_str(), path.as_str())
+                    .map_err(|e| koto::runtime::Error::from(format!("Failed to append dir: {e}")))?;
+                Ok(KValue::Null)
+            }
+            unexpected => type_error_with_slice("(arch_path: string, path: string)", unexpected),
+        }
     }
 
-    pub fn finish(&mut self) -> Result<Value> {
+    #[koto_method]
+    pub fn finish(&mut self) -> Result<KValue> {
         self.inner
             .borrow_mut()
-            .take()
-            .unwrap()
-            .into_inner()
-            .map_err(|e| make_runtime_error!(format!("Failed to finish tar.gz: {e}")))?;
+            .finish()
+            .map_err(|e| koto::runtime::Error::from(format!("Failed to finish tar.gz: {e}")))?;
         self.needs_finish = false;
-        Ok(Value::Null)
+        Ok(KValue::Null)
     }
 }
 
@@ -63,104 +71,53 @@ impl Drop for TarGz {
         if self.needs_finish {
             self.inner
                 .borrow_mut()
-                .take()
-                .unwrap()
-                .into_inner()
+                .finish()
                 .unwrap();
         }
     }
 }
 
-impl KotoType for TarGz {
-    const TYPE: &'static str = "TarGz";
-}
-
 impl KotoObject for TarGz {
-    fn object_type(&self) -> KString {
-        KString::from("TarGz")
-    }
-
-    fn copy(&self) -> KObject {
-        self.clone().into()
-    }
-
-    fn lookup(&self, key: &ValueKey) -> Option<Value> {
-        TARGZ_ENTRIES.with(|entries| entries.get(key).cloned())
-    }
-
     fn display(&self, ctx: &mut DisplayContext) -> Result<()> {
         ctx.append("TarGz");
         Ok(())
     }
 }
 
-impl From<TarGz> for Value {
+impl From<TarGz> for KValue {
     fn from(tar_gz: TarGz) -> Self {
         KObject::from(tar_gz).into()
     }
 }
 
-fn make_targz_entries() -> ValueMap {
-    ObjectEntryBuilder::<TarGz>::new()
-        .method("append_file", |ctx| match ctx.args {
-            [Value::Str(arch_path), Value::Str(file)] => {
-                ctx.instance_mut()?.append_file(arch_path, file)
-            }
-            unexpected => type_error_with_slice("(arch_path: string, file: string)", unexpected),
-        })
-        .method("append_dir_all", |ctx| match ctx.args {
-            [Value::Str(arch_path), Value::Str(path)] => {
-                ctx.instance_mut()?.append_dir_all(arch_path, path)
-            }
-            unexpected => type_error_with_slice("(arch_path: string, path: string)", unexpected),
-        })
-        .method("finish", |ctx| match ctx.args {
-            [] => ctx.instance_mut()?.finish(),
-            unexpected => type_error_with_slice("()", unexpected),
-        })
-        .build()
-}
-
-thread_local! {
-    static TARGZ_TYPE_STRING: KString = TarGz::TYPE.into();
-    static TARGZ_ENTRIES: ValueMap = make_targz_entries();
-}
-
-#[derive(Clone)]
+#[derive(Clone, KotoCopy, KotoType)]
 struct Zip {
-    inner: Rc<RefCell<ZipWriter<File>>>,
+    inner: PtrMut<ZipWriter<File>>,
     needs_finish: bool,
 }
 
+#[koto_impl]
 impl Zip {
-    pub fn create(file: &str) -> Result<Self> {
-        let f = File::create(file)
-            .map_err(|e| make_runtime_error!(format!("Failed to create file: {e}")))?;
+    pub fn create(file: KString) -> Result<Self> {
+        let f = File::create(file.as_str())
+            .map_err(|e| koto::runtime::Error::from(format!("Failed to create file: {e}")))?;
         Ok(Self {
-            inner: Rc::new(ZipWriter::new(f).into()),
+            inner: ZipWriter::new(f).into(),
             needs_finish: true,
         })
     }
 
-    pub fn append_file(&mut self, arch_path: &str, file: &str) -> Result<Value> {
-        let mut f = File::open(file)
-            .map_err(|e| make_runtime_error!(format!("Failed to open file: {e}")))?;
-        self.inner
-            .borrow_mut()
-            .start_file(arch_path, Default::default())
-            .map_err(|e| make_runtime_error!(format!("Failed to add file: {e}")))?;
-        std::io::copy(&mut f, &mut *self.inner.borrow_mut())
-            .map_err(|e| make_runtime_error!(format!("Failed to add file: {e}")))?;
-        Ok(Value::Null)
+    fn append_file_internal(&mut self, arch_path: &str, file: &Path) -> std::result::Result<(), anyhow::Error> {
+        let mut f = File::open(file)?;
+        self.inner.borrow_mut().start_file(arch_path, Default::default())?;
+        std::io::copy(&mut f, &mut *self.inner.borrow_mut())?;
+        Ok(())
     }
 
-    pub fn append_dir_all(&mut self, arch_path: &str, path: &str) -> Result<Value> {
-        for entry in std::fs::read_dir(path)
-            .map_err(|e| make_runtime_error!(format!("Failed to read dir: {e}")))?
+    fn append_dir_all_internal(&mut self, arch_path: &str, path: &Path) -> std::result::Result<(), anyhow::Error> {
+        for entry in std::fs::read_dir(path)?
         {
-            let entry =
-                entry.map_err(|e| make_runtime_error!(format!("Failed to read dir entry: {e}")))?;
-            let path = entry.path();
+            let path = entry?.path();
             let arch_path = match arch_path {
                 "." | "" => path.file_name().unwrap().to_str().unwrap().to_string(),
                 _ => format!(
@@ -170,21 +127,47 @@ impl Zip {
                 ),
             };
             if path.is_dir() {
-                self.append_dir_all(&arch_path, path.to_str().unwrap())?;
+                self.append_dir_all_internal(&arch_path, path.as_path())?;
             } else {
-                self.append_file(&arch_path, path.to_str().unwrap())?;
+                self.append_file_internal(&arch_path, path.as_path())?;
             }
         }
-        Ok(Value::Null)
+
+        Ok(())
     }
 
-    pub fn finish(&mut self) -> Result<Value> {
+    #[koto_method]
+    pub fn append_file(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [KValue::Str(arch_path), KValue::Str(file)] => {
+                ctx.instance_mut()?.append_file_internal(arch_path.as_str(), Path::new(file.as_str()))
+                    .map(|_| KValue::Null)
+                    .map_err(|_| koto::runtime::Error::from("Failed to append file"))
+            }
+            unexpected => type_error_with_slice("(arch_path: string, file: string)", unexpected),
+        }
+    }
+
+    #[koto_method]
+    pub fn append_dir_all(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [KValue::Str(arch_path), KValue::Str(path)] => {
+                ctx.instance_mut()?.append_dir_all_internal(arch_path.as_str(), Path::new(path.as_str()))
+                    .map(|_| KValue::Null)
+                    .map_err(|_| koto::runtime::Error::from("Failed to append dir"))
+            }
+            unexpected => type_error_with_slice("(arch_path: string, path: string)", unexpected),
+        }
+    }
+
+    #[koto_method]
+    pub fn finish(&mut self) -> Result<KValue> {
         self.inner
             .borrow_mut()
             .finish()
-            .map_err(|e| make_runtime_error!(format!("Failed to finish zip: {e}")))?;
+            .map_err(|e| koto::runtime::Error::from(format!("Failed to finish zip: {e}")))?;
         self.needs_finish = false;
-        Ok(Value::Null)
+        Ok(KValue::Null)
     }
 }
 
@@ -196,62 +179,20 @@ impl Drop for Zip {
     }
 }
 
-impl KotoType for Zip {
-    const TYPE: &'static str = "Zip";
-}
-
 impl KotoObject for Zip {
-    fn object_type(&self) -> KString {
-        KString::from("Zip")
-    }
-
-    fn copy(&self) -> KObject {
-        self.clone().into()
-    }
-
-    fn lookup(&self, key: &ValueKey) -> Option<Value> {
-        ZIP_ENTRIES.with(|entries| entries.get(key).cloned())
-    }
-
     fn display(&self, ctx: &mut DisplayContext) -> Result<()> {
         ctx.append("Zip");
         Ok(())
     }
 }
 
-impl From<Zip> for Value {
+impl From<Zip> for KValue {
     fn from(zip: Zip) -> Self {
         KObject::from(zip).into()
     }
 }
 
-fn make_zip_entries() -> ValueMap {
-    ObjectEntryBuilder::<Zip>::new()
-        .method("append_file", |ctx| match ctx.args {
-            [Value::Str(arch_path), Value::Str(file)] => {
-                ctx.instance_mut()?.append_file(arch_path, file)
-            }
-            unexpected => type_error_with_slice("(arch_path: string, file: string)", unexpected),
-        })
-        .method("append_dir_all", |ctx| match ctx.args {
-            [Value::Str(arch_path), Value::Str(path)] => {
-                ctx.instance_mut()?.append_dir_all(arch_path, path)
-            }
-            unexpected => type_error_with_slice("(arch_path: string, path: string)", unexpected),
-        })
-        .method("finish", |ctx| match ctx.args {
-            [] => ctx.instance_mut()?.finish(),
-            unexpected => type_error_with_slice("()", unexpected),
-        })
-        .build()
-}
-
-thread_local! {
-    static ZIP_TYPE_STRING: KString = Zip::TYPE.into();
-    static ZIP_ENTRIES: ValueMap = make_zip_entries();
-}
-
-pub fn extract(file: &str, dst: &str) -> Result<Value> {
+pub fn extract(file: &str, dst: &str) -> Result<KValue> {
     let ext = std::path::Path::new(file)
         .extension()
         .unwrap()
@@ -260,29 +201,29 @@ pub fn extract(file: &str, dst: &str) -> Result<Value> {
     match ext {
         "zip" => {
             let zip = File::open(file)
-                .map_err(|e| make_runtime_error!(format!("Failed to open file: {e}")))?;
+                .map_err(|e| koto::runtime::Error::from(format!("Failed to open file: {e}")))?;
             let mut archive = zip::ZipArchive::new(zip)
-                .map_err(|e| make_runtime_error!(format!("Failed to open zip archive: {e}")))?;
+                .map_err(|e| koto::runtime::Error::from(format!("Failed to open zip archive: {e}")))?;
             archive
                 .extract(dst)
-                .map_err(|e| make_runtime_error!(format!("Failed to extract zip archive: {e}")))?;
-            Ok(Value::Null)
+                .map_err(|e| koto::runtime::Error::from(format!("Failed to extract zip archive: {e}")))?;
+            Ok(KValue::Null)
         }
         "gz" | "tgz" => {
             let tar_gz = File::open(file)
-                .map_err(|e| make_runtime_error!(format!("Failed to open file: {e}")))?;
+                .map_err(|e| koto::runtime::Error::from(format!("Failed to open file: {e}")))?;
             let tar = GzDecoder::new(tar_gz);
             let mut archive = Archive::new(tar);
             archive
                 .unpack(dst)
-                .map_err(|e| make_runtime_error!(format!("Failed to extract tar archive: {e}")))?;
-            Ok(Value::Null)
+                .map_err(|e| koto::runtime::Error::from(format!("Failed to extract tar archive: {e}")))?;
+            Ok(KValue::Null)
         }
         _ => {
-            return Err(make_runtime_error!(format!(
+            runtime_error!(format!(
                 "Unsupported archive type: {}",
                 ext
-            )))
+            ))
         }
     }
 }
@@ -290,15 +231,15 @@ pub fn extract(file: &str, dst: &str) -> Result<Value> {
 pub fn make_module() -> KMap {
     let result = KMap::with_type("arch");
     result.add_fn("zip", |ctx| match ctx.args() {
-        [Value::Str(file)] => Zip::create(file).map(|zip| zip.into()),
+        [KValue::Str(file)] => Zip::create(file.clone()).map(|zip| zip.into()),
         unexpected => type_error_with_slice("a filename", unexpected),
     });
     result.add_fn("targz", |ctx| match ctx.args() {
-        [Value::Str(file)] => TarGz::create(file).map(|targz| targz.into()),
+        [KValue::Str(file)] => TarGz::create(file.clone()).map(|targz| targz.into()),
         unexpected => type_error_with_slice("a filename", unexpected),
     });
     result.add_fn("extract", |ctx| match ctx.args() {
-        [Value::Str(file), Value::Str(dst)] => extract(file, dst),
+        [KValue::Str(file), KValue::Str(dst)] => extract(file, dst),
         unexpected => type_error_with_slice("(file: string, dst: string)", unexpected),
     });
 

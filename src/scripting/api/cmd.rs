@@ -1,5 +1,4 @@
-use koto::prelude::*;
-use koto::runtime::Result;
+use koto::{derive::*, prelude::*, Result};
 use std::cell::RefCell;
 use std::process::{Command, Stdio};
 use std::rc::Rc;
@@ -86,13 +85,14 @@ struct CmdInternal {
     stderr: Routing,
 }
 
-#[derive(Clone)]
+#[derive(Clone, KotoCopy, KotoType)]
 struct Cmd(Rc<RefCell<CmdInternal>>);
 
+#[koto_impl]
 impl Cmd {
-    pub fn new(cmd: &str) -> Self {
+    pub fn new(cmd: &KString) -> Self {
         Self(Rc::new(RefCell::new(CmdInternal {
-            args: vec![cmd.into()],
+            args: vec![cmd.to_string()],
             envs: vec![],
             env_remove: vec![],
             env_clear: false,
@@ -103,68 +103,150 @@ impl Cmd {
         })))
     }
 
-    pub fn arg(&self, arg: &str) -> Result<Cmd> {
-        self.0.borrow_mut().args.push(arg.into());
-        Ok(self.clone())
-    }
-
-    pub fn args(&self, args: &[Value]) -> Result<Cmd> {
-        for arg in args {
-            match arg {
-                Value::Str(s) => {
-                    self.0.borrow_mut().args.push(s.to_string());
-                }
-                actual => return type_error("string", actual)
+    #[koto_method]
+    pub fn arg(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [KValue::Str(text)] => {
+                ctx.instance_mut()?.0.borrow_mut().args.push(text.to_string());
+                ctx.instance_result()
             }
+            unexpected => type_error_with_slice("a string", unexpected),
         }
-        Ok(self.clone())
     }
 
-    pub fn current_dir(&self, dir: &str) -> Result<Cmd> {
-        self.0.borrow_mut().current_dir = Some(dir.into());
-        Ok(self.clone())
-    }
-
-    pub fn env(&mut self, key: &str, value: &str) -> Result<Cmd> {
-        self.0.borrow_mut().envs.push((key.into(), value.into()));
-        Ok(self.clone())
-    }
-
-    pub fn envs(&mut self, envs: KMap) -> Result<Cmd> {
-        for (key, value) in envs.data().iter() {
-            match value {
-                Value::Str(value) => {
-                    self.0.borrow_mut().envs.push((key.to_string(), value.to_string()));
+    #[koto_method]
+    pub fn args(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [KValue::List(args)] => {
+                for arg in args.data().iter() {
+                    match arg {
+                        KValue::Str(s) => {
+                            ctx.instance_mut()?.0.borrow_mut().args.push(s.to_string());
+                        }
+                        actual => return type_error("string", actual)
+                    }
                 }
-                actual => return type_error("string", actual)
+                ctx.instance_result()
             }
+            unexpected => type_error_with_slice("(args: list)", unexpected),
         }
-        Ok(self.clone())
     }
 
-    pub fn env_clear(&mut self) -> Result<Cmd> {
-        self.0.borrow_mut().env_clear = true;
-        Ok(self.clone())
+    #[koto_method]
+    pub fn current_dir(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [KValue::Str(dir)] => {
+                ctx.instance_mut()?.0.borrow_mut().current_dir = Some(dir.to_string());
+                ctx.instance_result()
+            }
+            unexpected => type_error_with_slice("(dir: string)", unexpected),
+        }
     }
 
-    pub fn env_remove(&mut self, key: &str) -> Result<Cmd> {
-        self.0.borrow_mut().env_remove.push(key.into());
-        Ok(self.clone())
+    #[koto_method]
+    pub fn env(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [KValue::Str(key), KValue::Str(value)] => {
+                ctx.instance_mut()?.0.borrow_mut().envs.push((key.to_string(), value.to_string()));
+                ctx.instance_result()
+            }
+            unexpected => type_error_with_slice("(key: string, value: string)", unexpected),
+        }
     }
 
-    pub fn shell(&mut self) -> Result<Cmd> {
-        self.0.borrow_mut().shell = true;
-        Ok(self.clone())
+    #[koto_method]
+    pub fn envs(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [KValue::Map(envs)] => {
+                for (key, value) in envs.data().iter() {
+                    match value {
+                        KValue::Str(value) => {
+                            ctx.instance_mut()?.0.borrow_mut().envs.push((key.to_string(), value.to_string()));
+                        }
+                        actual => return type_error("string", actual)
+                    }
+                }
+                ctx.instance_result()
+            }
+            unexpected => type_error_with_slice("(envs: map)", unexpected),
+        }
     }
 
-    pub fn stdout(&mut self, routing: Routing) -> Result<Cmd> {
-        self.0.borrow_mut().stdout = routing;
-        Ok(self.clone())
+    #[koto_method]
+    pub fn env_clear(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [] => {
+                ctx.instance_mut()?.0.borrow_mut().env_clear = true;
+                ctx.instance_result()
+            }
+            unexpected => type_error_with_slice("()", unexpected),
+        }
     }
 
-    pub fn stderr(&mut self, routing: Routing) -> Result<Cmd> {
-        self.0.borrow_mut().stderr = routing;
-        Ok(self.clone())
+    #[koto_method]
+    pub fn env_remove(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [KValue::Str(key)] => {
+                ctx.instance_mut()?.0.borrow_mut().env_remove.push(key.to_string());
+                ctx.instance_result()
+            }
+            unexpected => type_error_with_slice("(key: string)", unexpected),
+        }
+    }
+
+    #[koto_method]
+    pub fn shell(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [] => {
+                ctx.instance_mut()?.0.borrow_mut().shell = true;
+                ctx.instance_result()
+            }
+            unexpected => type_error_with_slice("()", unexpected),
+        }
+    }
+
+    #[koto_method]
+    pub fn stdout(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [KValue::Str(routing)] => {
+                let routing = match routing.as_str() {
+                    "piped" => Routing::Piped,
+                    "inherit" => Routing::Inherit,
+                    "null" => Routing::Null,
+                    unexpected => {
+                        return runtime_error!(format!(
+                            "Expected one of 'piped', 'inherit', or 'null', found '{}'",
+                            unexpected
+                        ))
+                    }
+                };
+                ctx.instance_mut()?.0.borrow_mut().stdout = routing;
+                ctx.instance_result()
+            }
+            unexpected => type_error_with_slice("(routing: string)", unexpected),
+        }
+    }
+
+    #[koto_method]
+    pub fn stderr(ctx: MethodContext<Self>) -> Result<KValue> {
+        match ctx.args {
+            [KValue::Str(routing)] => {
+                let routing = match routing.as_str() {
+                    "piped" => Routing::Piped,
+                    "inherit" => Routing::Inherit,
+                    "null" => Routing::Null,
+                    unexpected => {
+                        return runtime_error!(format!(
+                            "Expected one of 'piped', 'inherit', or 'null', found '{}'",
+                            unexpected
+                        ))
+                    }
+                };
+                ctx.instance_mut()?.0.borrow_mut().stderr = routing;
+                ctx.instance_result()
+            }
+            unexpected => type_error_with_slice("(routing: string)", unexpected),
+        }
     }
 
     fn build_cmd(&mut self) -> Command {
@@ -227,186 +309,63 @@ impl Cmd {
         cmd
     }
 
-    pub fn execute(&mut self) -> Result<(i64, String, String)> {
+    #[koto_method]
+    pub fn execute(&mut self) -> Result<KValue> {
         let mut cmd = self.build_cmd();
         let output = cmd
             .output()
-            .map_err(|e| make_runtime_error!(format!("Failed to execute command: {:?}", e)))?;
-        Ok((output.status.code().unwrap() as i64,
-            String::from_utf8(output.stdout).unwrap(),
-            String::from_utf8(output.stderr).unwrap(),
-        ))
+            .map_err(|e| koto::runtime::Error::from(format!("Failed to execute command: {:?}", e)))?;
+        let result = KMap::new();
+        result.insert("status", KNumber::from(output.status.code().unwrap()));
+        result.insert("stdout", KString::from(String::from_utf8(output.stdout).unwrap()));
+        result.insert("stderr", KString::from(String::from_utf8(output.stderr).unwrap()));
+        Ok(result.into())
     }
-}
-
-impl KotoType for Cmd {
-    const TYPE: &'static str = "Cmd";
 }
 
 impl KotoObject for Cmd {
-    fn object_type(&self) -> KString {
-        CMD_TYPE_STRING.with(|s| s.clone())
-    }
-
-    fn copy(&self) -> KObject {
-        self.clone().into()
-    }
-
-    fn lookup(&self, key: &ValueKey) -> Option<Value> {
-        CMD_ENTRIES.with(|entries| entries.get(key).cloned())
-    }
-
     fn display(&self, ctx: &mut DisplayContext) -> Result<()> {
         ctx.append("Cmd");
         Ok(())
     }
 }
 
-impl From<Cmd> for Value {
+impl From<Cmd> for KValue {
     fn from(cmd: Cmd) -> Self {
         KObject::from(cmd).into()
     }
 }
 
-fn make_cmd_entries() -> ValueMap {
-    ObjectEntryBuilder::<Cmd>::new()
-        .method("arg", |ctx| match ctx.args {
-            [Value::Str(text)] => {
-                ctx.instance_mut()?.arg(text).map(|v| v.into())
-            }
-            unexpected => type_error_with_slice("a string", unexpected),
-        })
-        .method("args", |ctx| match ctx.args {
-            [Value::List(args)] => {
-                ctx.instance_mut()?.args(args.data().as_slice()).map(|v| v.into())
-            }
-            unexpected => type_error_with_slice("(args: list)", unexpected),
-        })
-        .method("current_dir", |ctx| match ctx.args {
-            [Value::Str(dir)] => {
-                ctx.instance_mut()?.current_dir(dir).map(|v| v.into())
-            }
-            unexpected => type_error_with_slice("(dir: string)", unexpected),
-        })
-        .method("env", |ctx| match ctx.args {
-            [Value::Str(key), Value::Str(value)] => {
-                ctx.instance_mut()?.env(key, value).map(|v| v.into())
-            }
-            unexpected => type_error_with_slice("(key: string, value: string)", unexpected),
-        })
-        .method("envs", |ctx| match ctx.args {
-            [Value::Map(envs)] => {
-                ctx.instance_mut()?.envs(envs.clone()).map(|v| v.into())
-            }
-            unexpected => type_error_with_slice("(envs: map)", unexpected),
-        })
-        .method("env_clear", |ctx| match ctx.args {
-            [] => {
-                ctx.instance_mut()?.env_clear().map(|v| v.into())
-            }
-            unexpected => type_error_with_slice("()", unexpected),
-        })
-        .method("env_remove", |ctx| match ctx.args {
-            [Value::Str(key)] => {
-                ctx.instance_mut()?.env_remove(key).map(|v| v.into())
-            }
-            unexpected => type_error_with_slice("(key: string)", unexpected),
-        })
-        .method("shell", |ctx| match ctx.args {
-            [] => {
-                ctx.instance_mut()?.shell().map(|v| v.into())
-            }
-            unexpected => type_error_with_slice("()", unexpected),
-        })
-        .method("stdout", |ctx| match ctx.args {
-            [Value::Str(routing)] => {
-                let routing = match routing.as_str() {
-                    "piped" => Routing::Piped,
-                    "inherit" => Routing::Inherit,
-                    "null" => Routing::Null,
-                    unexpected => {
-                        return Err(make_runtime_error!(format!(
-                            "Expected one of 'piped', 'inherit', or 'null', found '{}'",
-                            unexpected
-                        )))
-                    }
-                };
-                ctx.instance_mut()?.stdout(routing).map(|v| v.into())
-            }
-            unexpected => type_error_with_slice("(routing: string)", unexpected),
-        })
-        .method("stderr", |ctx| match ctx.args {
-            [Value::Str(routing)] => {
-                let routing = match routing.as_str() {
-                    "piped" => Routing::Piped,
-                    "inherit" => Routing::Inherit,
-                    "null" => Routing::Null,
-                    unexpected => {
-                        return Err(make_runtime_error!(format!(
-                            "Expected one of 'piped', 'inherit', or 'null', found '{}'",
-                            unexpected
-                        )))
-                    }
-                };
-                ctx.instance_mut()?.stderr(routing).map(|v| v.into())
-            }
-            unexpected => type_error_with_slice("(routing: string)", unexpected),
-        })
-        .method("execute", |ctx| match ctx.args {
-            [] => {
-                let output = ctx.instance_mut()?.execute()?;
-                let result = KMap::new();
-                result.add_value("status", output.0.into());
-                result.add_value("stdout", output.1.into());
-                result.add_value("stderr", output.2.into());
-                Ok(result.into())
-            }
-            unexpected => type_error_with_slice("()", unexpected),
-        })
-
-        .build()
-}
-
-thread_local! {
-    static CMD_TYPE_STRING: KString = Cmd::TYPE.into();
-    static CMD_ENTRIES: ValueMap = make_cmd_entries();
-}
-
-
-pub fn split(command: &str) -> Result<Value> {
-    shell_words::split(command).map_err(|e| make_runtime_error!(e.to_string())).map(|args| {
+pub fn split(command: &KString) -> Result<KValue> {
+    shell_words::split(command.as_str()).map_err(|e| koto::Error::from(e.to_string())).map(|args| {
         let args = args
             .into_iter()
-            .map(|s| Value::Str(s.into()))
-            .collect::<Vec<Value>>();
+            .map(|s| KValue::Str(s.into()))
+            .collect::<Vec<KValue>>();
         KTuple::from(args).into()
     })
 }
 
-pub fn join(args: Vec<String>) -> String {
-    shell_words::join(args)
+pub fn join(args: &KTuple) -> Result<KValue> {
+    let args: Vec<&str> = args.iter().map(|e| match e {
+        KValue::Str(s) => Ok(s.as_str()),
+        actual => type_error("string", actual)
+    }).collect::<Result<Vec<_>>>()?;
+    Ok(shell_words::join(args).into())
 }
 
 pub fn make_module() -> KMap {
     let result = KMap::with_type("cmd");
     result.add_fn("split", |ctx| match ctx.args() {
-        [Value::Str(command)] => split(command).into(),
+        [KValue::Str(command)] => split(command).into(),
         unexpected => type_error_with_slice("(command: string)", unexpected),
     });
     result.add_fn("join", |ctx| match ctx.args() {
-        [Value::Tuple(args)] => {
-            let args = args.into_iter()
-                .map(|a| match a {
-                    Value::Str(s) => Ok(s.to_string()),
-                    actual => type_error("string", actual),
-                })
-                .collect::<Result<Vec<String>>>()?;
-            Ok(join(args).into())
-        }
+        [KValue::Tuple(args)] => join(args).into(),
         unexpected => type_error_with_slice("(args: list)", unexpected),
     });
     result.add_fn("new", |ctx| match ctx.args() {
-        [Value::Str(command)] => Ok(Cmd::new(command).into()),
+        [KValue::Str(command)] => Ok(Cmd::new(command).into()),
         unexpected => type_error_with_slice("(command: string)", unexpected),
     });
 

@@ -6,7 +6,7 @@ use std::rc::Rc;
 pub fn make_module() -> KMap {
     let result = KMap::with_type("re");
     result.add_fn("regex", |ctx| match ctx.args() {
-        [Value::Str(pattern)] => Ok(Regex::new(pattern)?.into()),
+        [KValue::Str(pattern)] => Ok(Regex::new(pattern)?.into()),
         unexpected => type_error_with_slice("a regex pattern as string", unexpected),
     });
     result
@@ -58,7 +58,7 @@ impl KotoObject for Regex {
         self.clone().into()
     }
 
-    fn lookup(&self, key: &ValueKey) -> Option<Value> {
+    fn lookup(&self, key: &ValueKey) -> Option<KValue> {
         REGEX_ENTRIES.with(|entries| entries.get(key).cloned())
     }
 
@@ -77,11 +77,11 @@ impl From<Regex> for Value {
 fn make_regex_entries() -> ValueMap {
     ObjectEntryBuilder::<Regex>::new()
         .method("is_match", |ctx| match ctx.args {
-            [Value::Str(text)] => Ok(ctx.instance()?.0.is_match(text).into()),
+            [KValue::Str(text)] => Ok(ctx.instance()?.0.is_match(text).into()),
             unexpected => type_error_with_slice("a string", unexpected),
         })
         .method("find_all", |ctx| match ctx.args {
-            [Value::Str(text)] => {
+            [KValue::Str(text)] => {
                 let r = ctx.instance()?;
                 let matches = r.0.find_iter(text);
                 Ok(Matches {
@@ -94,18 +94,18 @@ fn make_regex_entries() -> ValueMap {
             unexpected => type_error_with_slice("a string", unexpected),
         })
         .method("find", |ctx| match ctx.args {
-            [Value::Str(text)] => {
+            [KValue::Str(text)] => {
                 let r = ctx.instance()?;
                 let m = r.0.find(text);
                 match m {
                     Some(m) => Ok(Match::new(Rc::from(text.as_str()), m.start(), m.end()).into()),
-                    None => Ok(Value::Null),
+                    None => Ok(KValue::Null),
                 }
             }
             unexpected => type_error_with_slice("a string", unexpected),
         })
         .method("captures", |ctx| match ctx.args {
-            [Value::Str(text)] => {
+            [KValue::Str(text)] => {
                 let r = ctx.instance()?;
                 let captures = r.0.captures(text);
                 let capture_names = r.0.capture_names();
@@ -132,13 +132,13 @@ fn make_regex_entries() -> ValueMap {
                         }
                         .into())
                     }
-                    None => Ok(Value::Null),
+                    None => Ok(KValue::Null),
                 }
             }
             unexpected => type_error_with_slice("a string", unexpected),
         })
         .method("replace_all", |ctx| match ctx.args {
-            [Value::Str(text), Value::Str(replacement)] => {
+            [KValue::Str(text), Value::Str(replacement)] => {
                 let r = ctx.instance()?;
                 let result = r.0.replace_all(text, replacement.as_str());
                 Ok(result.to_string().into())
@@ -237,7 +237,7 @@ impl KotoObject for Match {
         self.clone().into()
     }
 
-    fn lookup(&self, key: &ValueKey) -> Option<Value> {
+    fn lookup(&self, key: &ValueKey) -> Option<KValue> {
         MATCH_ENTRIES.with(|entries| entries.get(key).cloned())
     }
 
@@ -292,11 +292,11 @@ impl KotoObject for Captures {
         self.clone().into()
     }
 
-    fn lookup(&self, key: &ValueKey) -> Option<Value> {
+    fn lookup(&self, key: &ValueKey) -> Option<KValue> {
         CAPTURES_ENTRIES.with(|entries| entries.get(key).cloned())
     }
 
-    fn index(&self, index: &Value) -> Result<Value> {
+    fn index(&self, index: &Value) -> Result<KValue> {
         match index {
             Value::Number(index) => match self.captures.get(index.as_i64() as usize) {
                 Some(Some((start, end))) => Ok(Match::new(self.text.clone(), *start, *end).into()),
@@ -325,18 +325,18 @@ impl From<Captures> for Value {
 fn make_captures_entries() -> ValueMap {
     ObjectEntryBuilder::<Captures>::new()
         .method("get", |ctx| match ctx.args {
-            [Value::Number(index)] => {
+            [KValue::Number(index)] => {
                 let c = ctx.instance()?;
                 match c.captures.get(index.as_i64() as usize) {
                     Some(Some((start, end))) => Ok(Match::new(c.text.clone(), *start, *end).into()),
-                    _ => Ok(Value::Null),
+                    _ => Ok(KValue::Null),
                 }
             }
-            [Value::Str(name)] => {
+            [KValue::Str(name)] => {
                 let c = ctx.instance()?;
                 match c.byname.get(name.as_str()) {
                     Some(m) => Ok(Match::new(c.text.clone(), m.0, m.1).into()),
-                    None => Ok(Value::Null),
+                    None => Ok(KValue::Null),
                 }
             }
             unexpected => type_error_with_slice("a number", unexpected),

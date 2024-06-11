@@ -12,19 +12,19 @@ struct DynamicModule {
 
 fn add_common_prelude(koto: &mut Koto) {
     let prelude = koto.prelude();
-    prelude.add_map("arch", api::arch::make_module());
-    prelude.add_map("cmd", api::cmd::make_module());
-    prelude.add_map("git", api::git::make_module());
-    prelude.add_map("http", api::http::make_module());
-    prelude.add_map("io_ext", api::io::make_module());
-    prelude.add_map("json", koto_json::make_module());
-    prelude.add_map("net", api::net::make_module());
-    prelude.add_map("re", api::re::make_module());
-    prelude.add_map("sys", api::sys::make_module());
-    prelude.add_map("tempfile", koto_tempfile::make_module());
-    prelude.add_map("toml", koto_toml::make_module());
-    prelude.add_map("utils", api::utils::make_module());
-    prelude.add_map("yaml", koto_yaml::make_module());
+    prelude.insert("arch", api::arch::make_module());
+    prelude.insert("cmd", api::cmd::make_module());
+    prelude.insert("git", api::git::make_module());
+    prelude.insert("http", api::http::make_module());
+    prelude.insert("io_ext", api::io::make_module());
+    prelude.insert("json", koto_json::make_module());
+    prelude.insert("net", api::net::make_module());
+    prelude.insert("regex", koto_regex::make_module());
+    prelude.insert("sys", api::sys::make_module());
+    prelude.insert("tempfile", koto_tempfile::make_module());
+    prelude.insert("toml", koto_toml::make_module());
+    prelude.insert("utils", api::utils::make_module());
+    prelude.insert("yaml", koto_yaml::make_module());
 }
 
 fn load_dynamic_modules(koto: &mut Koto, modules: &[DynamicModule]) -> Result<(), anyhow::Error> {
@@ -41,13 +41,13 @@ fn load_dynamic_modules(koto: &mut Koto, modules: &[DynamicModule]) -> Result<()
             .map_err(koto_error_to_anyhow)
             .context(format!("Error while compiling {}", module.name))?;
         koto.prelude()
-            .add_map(&module.name, runtime.exports().clone());
+            .insert(koto::runtime::KString::from(module.name.as_str()), runtime.exports().clone());
     }
 
     Ok(())
 }
 
-pub fn run_tasks(script_file: &Path) -> Result<(), anyhow::Error> {
+pub fn run_file(script_file: &Path) -> Result<(), anyhow::Error> {
     let mut koto = Koto::new();
     add_common_prelude(&mut koto);
 
