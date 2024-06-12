@@ -7,7 +7,7 @@ use zip::ZipWriter;
 
 #[derive(Clone, KotoCopy, KotoType)]
 struct TarGz {
-    inner: PtrMut<Builder<GzEncoder<File>>>,
+    inner: PtrMut<Option<Builder<GzEncoder<File>>>>,
     needs_finish: bool,
 }
 
@@ -18,7 +18,7 @@ impl TarGz {
             .map_err(|e| koto::runtime::Error::from(format!("Failed to create file: {e}")))?;
         let enc: GzEncoder<File> = GzEncoder::new(f, flate2::Compression::default());
         Ok(Self {
-            inner: Builder::new(enc).into(),
+            inner: Some(Builder::new(enc)).into(),
             needs_finish: true,
         })
     }
@@ -32,6 +32,8 @@ impl TarGz {
                 ctx.instance_mut()?
                     .inner
                     .borrow_mut()
+                    .as_mut()
+                    .unwrap()
                     .append_file(arch_path.as_str(), &mut f)
                     .map_err(|e| koto::runtime::Error::from(format!("Failed to append file: {e}")))?;
                 Ok(KValue::Null)
@@ -47,8 +49,10 @@ impl TarGz {
                 ctx.instance_mut()?
                     .inner
                     .borrow_mut()
+                    .as_mut()
+                    .unwrap()
                     .append_dir_all(arch_path.as_str(), path.as_str())
-                    .map_err(|e| koto::runtime::Error::from(format!("Failed to append dir: {e}")))?;
+                    .map_err(|e| koto::runtime::Error::from(format!("Failed to append dir: {e}"))).unwrap();
                 Ok(KValue::Null)
             }
             unexpected => type_error_with_slice("(arch_path: string, path: string)", unexpected),
@@ -59,8 +63,10 @@ impl TarGz {
     pub fn finish(&mut self) -> Result<KValue> {
         self.inner
             .borrow_mut()
-            .finish()
-            .map_err(|e| koto::runtime::Error::from(format!("Failed to finish tar.gz: {e}")))?;
+            .take()
+            .unwrap()
+            .into_inner().map_err(|e| koto::runtime::Error::from(format!("Failed to finish tar.gz: {e}")))?
+            .finish().map_err(|e| koto::runtime::Error::from(format!("Failed to finish tar.gz: {e}")))?;
         self.needs_finish = false;
         Ok(KValue::Null)
     }
@@ -71,8 +77,10 @@ impl Drop for TarGz {
         if self.needs_finish {
             self.inner
                 .borrow_mut()
-                .finish()
-                .unwrap();
+                .take()
+                .unwrap()
+                .into_inner().map_err(|e| koto::runtime::Error::from(format!("Failed to finish tar.gz: {e}"))).unwrap()
+                .finish().map_err(|e| koto::runtime::Error::from(format!("Failed to finish tar.gz: {e}"))).unwrap();
         }
     }
 }
@@ -193,7 +201,7 @@ impl From<Zip> for KValue {
 }
 
 pub fn extract(file: &str, dst: &str) -> Result<KValue> {
-    let ext = std::path::Path::new(file)
+    let ext = Path::new(file)
         .extension()
         .unwrap()
         .to_str()
