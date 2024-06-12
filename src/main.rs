@@ -1,4 +1,4 @@
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use std::panic;
 use std::path::{Path, PathBuf};
 
@@ -78,7 +78,7 @@ pub fn main() -> Result<(), anyhow::Error> {
             }
         }
     }
-
+    
     let cli = Cli::parse();
     let mut config = commands::config::Config::new();
 
@@ -98,7 +98,7 @@ pub fn main() -> Result<(), anyhow::Error> {
         Commands::Run { file } => {
             print_header();
             if let Err(e) = scripting::run_file(file.as_ref().unwrap_or(&PathBuf::from("main.koto"))) {
-                Cli::command().print_help().unwrap();
+                //Cli::command().print_help().unwrap();
                 Err(e)
             } else {
                 Ok(())

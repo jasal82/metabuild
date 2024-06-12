@@ -5,6 +5,7 @@ use std::rc::Rc;
 
 #[derive(Clone, KotoCopy, KotoType)]
 struct TempDir {
+    #[allow(unused)]
     handle: Rc<tempfile::TempDir>,
     path: Rc<str>,
 }

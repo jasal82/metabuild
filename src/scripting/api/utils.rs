@@ -1,316 +1,272 @@
 use base64::{engine::general_purpose, Engine as _};
-use colored::{Color, ColoredString, Colorize};
+use colored::{ColoredString, Colorize};
 use koto::{derive::*, prelude::*, Result};
 use koto_serialize::SerializableValue;
 use std::collections::HashMap;
 use tera::{Context, Tera};
-use std::cell::RefCell;
-use std::mem;
 
 #[derive(Clone, Debug, KotoCopy, KotoType)]
 pub struct Painter {
-    text: RefCell<ColoredString>,
+    text: Option<ColoredString>,
 }
 
 #[koto_impl]
 impl Painter {
     #[koto_method]
     pub fn black(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::Black));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.black()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn red(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::Red));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.red()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn green(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::Green));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.green()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn yellow(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::Yellow));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.yellow()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn blue(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::Blue));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.blue()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn magenta(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::Magenta));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.magenta()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn cyan(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::Cyan));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.cyan()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn white(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::White));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.white()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn bright_black(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::BrightBlack));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.bright_black()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn bright_red(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::BrightRed));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.bright_red()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn bright_green(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::BrightGreen));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.bright_green()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn bright_yellow(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::BrightYellow));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.bright_yellow()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn bright_blue(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::BrightBlue));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.bright_blue()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn bright_magenta(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::BrightMagenta));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.bright_magenta()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn bright_cyan(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::BrightCyan));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.bright_cyan()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn bright_white(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.color(Color::BrightWhite));
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.bright_white()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_black(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_black());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_black()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_red(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_red());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_red()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_green(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_green());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_green()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_yellow(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_yellow());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_yellow()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_blue(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_blue());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_blue()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_magenta(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_magenta());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_magenta()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_cyan(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_cyan());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_cyan()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_white(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_white());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_white()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_bright_black(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_bright_black());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_bright_black()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_bright_red(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_bright_red());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_bright_red()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_bright_green(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_bright_green());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_bright_green()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_bright_yellow(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_bright_yellow());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_bright_yellow()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_bright_blue(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_bright_blue());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_bright_blue()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_bright_magenta(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_bright_magenta());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_bright_magenta()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_bright_cyan(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_bright_cyan());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_bright_cyan()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn on_bright_white(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.on_bright_white());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.on_bright_white()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn clear(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.clear());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.clear()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn normal(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.normal());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.normal()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn bold(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.bold());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.bold()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn dimmed(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.dimmed());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.dimmed()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn italic(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.italic());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.italic()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn underline(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.underline());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.underline()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn blink(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.blink());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.blink()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn reversed(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.reversed());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.reversed()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn hidden(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.hidden());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.hidden()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn strikethrough(ctx: MethodContext<Self>) -> Result<KValue> {
-        let text = mem::take(&mut *ctx.instance_mut()?.text.borrow_mut());
-        ctx.instance_mut()?.text.replace(text.strikethrough());
+        ctx.instance_mut()?.text = ctx.instance_mut()?.text.take().and_then(|t| Some(t.strikethrough()));
         ctx.instance_result()
     }
 
     #[koto_method]
     pub fn to_string(&self) -> Result<KValue> {
-        Ok(self.text.borrow().to_string().into())
+        Ok(self.text.as_ref().unwrap().to_string().into())
     }
 }
 
@@ -318,7 +274,7 @@ impl KotoObject for Painter {
     fn display(&self, ctx: &mut DisplayContext) -> Result<()> {
         // This implementation is used to implicitly render the Painter
         // instance in Koto, so keep the format expression exactly as-is.
-        ctx.append(format!("{}", self.text.borrow().to_string()));
+        ctx.append(format!("{}", self.text.as_ref().unwrap().to_string()));
         Ok(())
     }
 }
@@ -330,7 +286,7 @@ impl From<Painter> for KValue {
 }
 
 pub fn paint(text: &str) -> Result<KValue> {
-    Ok(Painter { text: RefCell::new(text.into()) }.into())
+    Ok(Painter { text: Some(text.into()) }.into())
 }
 
 enum Source {
