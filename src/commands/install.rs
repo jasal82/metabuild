@@ -46,13 +46,14 @@ pub fn install_script_modules(
 
     if let Some(dependency_table) = dependency_table {
         println!("Using index {index_url}");
-        println!("Updating list of available packages");
         let mut inventory = Inventory::new(index_url, Path::new(".mb").join("cache").as_path())?;
+        println!("Updating cache...");
         inventory.update_cache()?;
         let dependencies = parse_dependency_table(dependency_table)?;
-        println!("Installing dependencies");
+        println!("Resolving dependencies...");
         match solve(&inventory, dependencies) {
             Ok(result) => {
+                println!("Installing dependencies...");
                 for (mod_name, mod_version) in result {
                     println!("  [*] {mod_name}/{mod_version}");
                     let mod_url = inventory.index().get_url(&mod_name)?;
@@ -62,10 +63,10 @@ pub fn install_script_modules(
             },
             Err(metabuild_resolver::SolverError::Unsolvable(reason)) => {
                 println!("{}", reason);
-                Err(anyhow::anyhow!("Cannot resolve script module dependencies"))
+                Err(anyhow::anyhow!("Could not resolve script module dependencies"))
             },
             Err(metabuild_resolver::SolverError::Cancelled) => {
-                Err(anyhow::anyhow!("Solver was cancelled"))
+                Err(anyhow::anyhow!("Resolving was cancelled"))
             }
         }
     } else {

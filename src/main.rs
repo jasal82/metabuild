@@ -1,4 +1,5 @@
 use clap::Parser;
+use color_eyre::eyre::Result;
 use std::panic;
 use std::path::{Path, PathBuf};
 
@@ -38,8 +39,8 @@ fn print_header() {
     println!(r#"   /  ' \/ -_) __/ _ `/ _ \/ // / / / _  / "#);
     println!(r#"  /_/_/_/\__/\__/\_,_/_.__/\_,_/_/_/\_,_/  "#);
     println!();
-    println!(r#"  metabuild v{VERSION} - Build automation tool"#);
-    println!(r#"  Copyright (c) 2023-2024 Johannes Asal"#);
+    println!("  metabuild v{VERSION} - Build automation tool");
+    println!("  Copyright (c) 2023-2024 Johannes Asal");
     println!();
 }
 
@@ -60,6 +61,7 @@ fn to_scope(global: bool) -> commands::config::ConfigScope {
 }
 
 pub fn main() -> Result<(), anyhow::Error> {
+    color_eyre::install().map_err(|_| anyhow::anyhow!("Failed to install color_eyre"))?;
     panic::set_hook(Box::new(|panic_info| {
         logging::error(panic_info.to_string());
     }));
