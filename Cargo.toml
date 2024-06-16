@@ -53,7 +53,8 @@ tempfile = "3"
 tera = "1"
 thiserror = "1"
 toml = "0.7"
-ureq = { version = "2.9.7", features = ["native-certs", "gzip", "tls"] }
+ureq = { version = "2.9.7", features = ["gzip", "tls"] }
+url = "2.5.1"
 which = "4.4"
 zip = { version = "0.6", features = ["deflate"] }
 metabuild-git = { path = "metabuild-git" }

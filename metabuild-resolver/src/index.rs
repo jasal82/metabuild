@@ -2,38 +2,57 @@ use crate::repository::{BareRepository, RefType};
 use anyhow::Error;
 use indexmap::IndexMap;
 use std::path::Path;
-use yaml_rust::YamlLoader;
+use yaml_rust::{YamlLoader, Yaml};
+
+pub enum LocationInfo {
+    Git(String),
+    Artifactory {
+        server: String,
+        repo: String,
+        path: String
+    },
+}
 
 pub struct Index {
-    data: IndexMap<String, String>,
+    data: IndexMap<String, LocationInfo>,
 }
 
 impl Index {
     pub fn new(url: &str, ref_type: &RefType, path: &Path) -> Result<Self, Error> {
-        let mut map: IndexMap<String, String> = IndexMap::new();
         let repo = BareRepository::new(url, Some(path))?;
+
+        let mut data: IndexMap<String, LocationInfo> = IndexMap::new();
         let index_contents = repo.get_file(&ref_type, Path::new("index.yaml"))?;
         let index = YamlLoader::load_from_str(&String::from_utf8_lossy(&index_contents))?;
         let doc = &index[0];
         for (k, v) in doc
             .as_hash()
-            .ok_or(anyhow::anyhow!("Failed to load index"))?
+            .ok_or(anyhow::anyhow!("Failed to load module index"))?
         {
-            let name = k.as_str().unwrap();
-            let url = v.as_str().unwrap();
-            map.insert(name.to_string(), url.to_string());
+            let name = k.as_str().expect("Invalid key");
+            let reference = if let Some(m) = v.as_hash() {
+                LocationInfo::Artifactory {
+                    server: m[&Yaml::from_str("server")].as_str().expect("Expected 'server' key").to_string(),
+                    repo: m[&Yaml::from_str("repo")].as_str().expect("Expected 'repo' key").to_string(),
+                    path: m[&Yaml::from_str("path")].as_str().expect("Expected 'path' key").to_string()
+                }
+            } else {
+                LocationInfo::Git(v.as_str().expect("Expected a string value").to_string())
+            };
+            data.insert(name.to_string(), reference);
         }
-        Ok(Self { data: map })
+
+        Ok(Self { data })
     }
 
-    pub fn get_modules(&self) -> Result<Vec<&str>, Error> {
+    pub fn get_packages(&self) -> Result<Vec<&str>, Error> {
         Ok(self.data.keys().map(|k| k.as_str()).collect())
     }
 
-    pub fn get_url(&self, module_name: &str) -> Result<&String, Error> {
+    pub fn get_package_location(&self, package_name: &str) -> Result<&LocationInfo, Error> {
         self.data
-            .get(module_name)
-            .ok_or(anyhow::anyhow!("Module not found ({module_name})"))
+            .get(package_name)
+            .ok_or(anyhow::anyhow!("Package not found ({package_name})"))
     }
 }
 
@@ -51,13 +70,13 @@ mod tests {
             temp_dir.path(),
         )
         .unwrap();
-        println!("modules: {:?}", index.get_modules().unwrap());
+        println!("modules: {:?}", index.get_packages().unwrap());
         assert_eq!(
-            index.get_url("module1").unwrap(),
+            index.get_module_url("module1").unwrap(),
             "https://github.com/jasal82/module1.git"
         );
         assert_eq!(
-            index.get_url("module2").unwrap(),
+            index.get_module_url("module2").unwrap(),
             "https://github.com/jasal82/module2.git"
         );
     }

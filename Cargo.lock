@@ -1877,6 +1877,7 @@ dependencies = [
  "thiserror",
  "toml 0.7.8",
  "ureq",
+ "url",
  "which",
  "zip",
 ]
@@ -1908,12 +1909,14 @@ dependencies = [
  "metabuild-git",
  "reqwest 0.12.4",
  "resolvo 0.4.1",
+ "rustls-native-certs",
  "semver",
  "serde",
  "serde_json",
  "tempfile",
  "toml 0.8.14",
  "tracing",
+ "ureq",
  "yaml-rust",
 ]
 
@@ -3432,6 +3435,8 @@ dependencies = [
  "rustls-native-certs",
  "rustls-pki-types",
  "rustls-webpki",
+ "serde",
+ "serde_json",
  "url",
  "webpki-roots",
 ]

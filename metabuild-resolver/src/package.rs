@@ -143,13 +143,14 @@ impl FromStr for VersionReq {
     }
 }
 
-pub struct Module {
+#[derive(Serialize, Deserialize)]
+pub struct Package {
     pub name: String,
     pub version: Version,
     pub dependencies: IndexMap<String, VersionReq>,
 }
 
-impl Module {
+impl Package {
     pub fn new(name: &str, version: &str) -> Self {
         Self {
             name: name.into(),
@@ -158,7 +159,7 @@ impl Module {
         }
     }
 
-    pub fn add_dependency(mut self, name: &str, range: &str) -> Self {
+    pub fn add_dependency(&mut self, name: &str, range: &str) -> &mut Self {
         self.dependencies
             .insert(name.to_string(), range.parse().unwrap());
         self

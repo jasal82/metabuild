@@ -19,6 +19,8 @@ tracing = "0.1.40"
 itertools = "0.13.0"
 anyhow = "1.0.86"
 reqwest = "0.12.4"
+rustls-native-certs = "*"
 dirs = "5.0.1"
 yaml-rust = "0.4.5"
 tempfile = "3.10.1"
+ureq = { version = "2.9.7", features = ["native-certs", "gzip", "tls", "json"] }

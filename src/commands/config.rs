@@ -15,8 +15,8 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Reflect, Default)]
 pub struct ConfigData {
-    pub gitlab_token: Option<String>,
     pub index_url: Option<String>,
+    pub artifactory_token: Option<String>,
 }
 
 pub enum ConfigScope {
@@ -75,24 +75,24 @@ impl Config {
         };
 
         match key {
-            "gitlab_token" => {
-                println!("Set config 'gitlab_token'");
-                target.gitlab_token = Some(value.to_owned());
-                self.write_and_update()
-            },
             "index_url" => {
                 println!("Set config 'index_url'");
                 target.index_url = Some(value.to_owned());
                 self.write_and_update()
             },
+            "artifactory_token" => {
+                println!("Set config 'artifactory_token'");
+                target.artifactory_token = Some(value.to_owned());
+                self.write_and_update()
+            }
             _ => Err(anyhow!("Invalid key"))
         }
     }
 
     pub fn get(&mut self, key: &str) -> Result<&str, anyhow::Error> {
         match key {
-            "gitlab_token" => self.merged.gitlab_token.as_ref().map(String::as_str).ok_or(anyhow!("gitlab_token is not set")),
             "index_url" => self.merged.index_url.as_ref().map(String::as_str).ok_or(anyhow!("index_url is not set")),
+            "artifactory_token" => self.merged.artifactory_token.as_ref().map(String::as_str).ok_or(anyhow!("artifactory_token is not set")),
             _ => Err(anyhow!("Invalid key"))
         }
     }
@@ -104,20 +104,20 @@ impl Config {
         };
 
         match key {
-            "gitlab_token" => {
-                if target.gitlab_token.is_some() {
-                    println!("Removed config 'gitlab_token'");
-                    target.gitlab_token = None;
+            "index_url" => {
+                if target.index_url.is_some() {
+                    println!("Removed config 'index_url'");
+                    target.index_url = None;
                     self.write_and_update()
                 } else {
                     println!("Nothing to remove");
                     Ok(())
                 }
             },
-            "index_url" => {
-                if target.index_url.is_some() {
-                    println!("Removed config 'index_url'");
-                    target.index_url = None;
+            "artifactory_token" => {
+                if target.artifactory_token.is_some() {
+                    println!("Removed config 'artifactory_token'");
+                    target.artifactory_token = None;
                     self.write_and_update()
                 } else {
                     println!("Nothing to remove");
@@ -131,7 +131,7 @@ impl Config {
         }
     }
 
-    pub fn list(&mut self) -> Result<(), anyhow::Error> {
+    pub fn show(&mut self) -> Result<(), anyhow::Error> {
         if let Some(type_info) = self.merged.get_represented_type_info() {
             if let TypeInfo::Struct(struct_info) = type_info {
                 for (i, reflect_value) in self.merged.iter_fields().enumerate() {
@@ -154,6 +154,12 @@ impl Config {
             }
         }
 
+        Ok(())
+    }
+
+    pub fn list(&self) -> Result<(), anyhow::Error> {
+        println!("index_url: URL of the package index; can be overridden in the project's manifest.toml; only SSH protocol is supported");
+        println!("artifactory_token: Token for Artifactory authentication");
         Ok(())
     }
 }

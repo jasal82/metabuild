@@ -33,17 +33,6 @@ lazy_static! {
     };
 }
 
-fn print_header() {
-    println!(r#"               __       __        _ __   __"#);
-    println!(r#"    __ _  ___ / /____ _/ /  __ __(_) /__/ /"#);
-    println!(r#"   /  ' \/ -_) __/ _ `/ _ \/ // / / / _  / "#);
-    println!(r#"  /_/_/_/\__/\__/\_,_/_.__/\_,_/_/_/\_,_/  "#);
-    println!();
-    println!("  metabuild v{VERSION} - Build automation tool");
-    println!("  Copyright (c) 2023-2024 Johannes Asal");
-    println!();
-}
-
 fn parse_manifest(file: &Path) -> toml::Table {
     let content = std::fs::read_to_string(file)
         .expect(format!("Could not read manifest file '{}'", file.display()).as_str());
@@ -88,17 +77,10 @@ pub fn main() -> Result<(), anyhow::Error> {
         Commands::Install {
             file,
         } => {
-            print_header();
             let manifest = parse_manifest(file.as_ref().unwrap_or(&PathBuf::from("manifest.toml")));
-            commands::install::install_script_modules(
-                &config.merged,
-                &manifest
-            )?;
-            commands::install::install_executables(&manifest);
-            Ok(())
+            commands::install::install_dependencies(&config.merged, &manifest)
         }
         Commands::Run { file } => {
-            print_header();
             if let Err(e) = scripting::run_file(file.as_ref().unwrap_or(&PathBuf::from("main.koto"))) {
                 //Cli::command().print_help().unwrap();
                 Err(e)
@@ -107,17 +89,18 @@ pub fn main() -> Result<(), anyhow::Error> {
             }
         }
         Commands::Update => {
-            print_header();
             commands::update::update()
         },
         Commands::Config { command } => match &command {
             ConfigCommands::Set { key, value, global } => config.set(key, value, to_scope(*global)),
-            ConfigCommands::Get { key } => { config.get(key).map(|v| {
+            ConfigCommands::Get { key } => {
+                config.get(key).map(|v| {
                     println!("{}", v);
                     ()
                 })
             },
             ConfigCommands::Remove { key, global } => config.remove(key, to_scope(*global)),
+            ConfigCommands::Show => config.show(),
             ConfigCommands::List => config.list(),
         },
     }

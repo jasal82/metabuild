@@ -1,11 +1,11 @@
-mod index;
+pub mod index;
 pub mod inventory;
-mod module;
+pub mod package;
 mod repository;
 
 use inventory::Inventory;
 use itertools::Itertools;
-use module::VersionReq;
+use package::VersionReq;
 use resolvo::{DefaultSolvableDisplay, Solver, UnsolvableOrCancelled};
 use std::collections::HashMap;
 
