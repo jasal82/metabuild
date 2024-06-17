@@ -192,11 +192,9 @@ impl Inventory {
 
         for module in self.index.get_packages()? {
             let location_info = self.index.get_package_location(&module)?;
-            println!("Fetching module {module}");
             let metadata_retriever = self.make_metadata_retriever(module, location_info)?;
             let versions = metadata_retriever.fetch_versions()?;
             for ref version in versions {
-                println!("Trying version {version}");
                 let download_manifest = match self.index_cache.get(module) {
                     Some(inner_map) => !inner_map.contains_key(&Version::from_str(&version)?),
                     None => true,
