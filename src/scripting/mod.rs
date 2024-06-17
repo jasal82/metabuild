@@ -1,10 +1,41 @@
 use anyhow::{Context, Error};
 use koto::Koto;
+use koto::{derive::*, prelude::*};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use path_absolutize::Absolutize;
 
 mod api;
+
+#[derive(Clone, KotoCopy, KotoType)]
+struct ModuleMetadata {
+    path: PathBuf,
+}
+
+#[koto_impl]
+impl ModuleMetadata {
+    fn new(path: &Path) -> Self { Self { path: path.to_path_buf() } }
+
+    #[koto_method]
+    fn get_resource(ctx: MethodContext<Self>) -> koto::Result<KValue> {
+        match ctx.args {
+            [KValue::Str(resource_path)] => {
+                let mod_path = &ctx.instance()?.path;
+                Ok(mod_path.join(resource_path.as_str()).to_str().expect("Invalid path").into())
+            },
+            unexpected => type_error_with_slice("(resource_path: string)", unexpected),
+        }
+    }
+}
+
+impl KotoObject for ModuleMetadata {
+    fn display(&self, ctx: &mut DisplayContext) -> koto::Result<()> {
+        ctx.append("ModuleMetadata");
+        Ok(())
+    }
+}
 
 fn add_common_prelude(koto: &mut Koto) {
     let prelude = koto.prelude();
@@ -49,32 +80,19 @@ fn load_dynamic_modules(koto: &mut Koto) -> Result<(), anyhow::Error> {
 }
 
 fn inject_resources(koto: &mut Koto) -> Result<(), Error> {
-    let ns_tools = koto::runtime::KMap::new();
+    let mut module_map = KMap::new();
     let manifest_files = glob::glob("./.mb/deps/*/manifest.toml")?;
     for mf in manifest_files {
         let mf = mf?;
         let mod_dir = mf.parent().unwrap();
         let mod_name = mod_dir.file_name().unwrap().to_str().unwrap();
-        let manifest_content = fs::read_to_string(&mf)?;
-        let toml = manifest_content.parse::<toml::Table>().unwrap();
-        if let Some(tools) = toml.get("tools").and_then(toml::Value::as_table) {
-            let ns_mod_tools = koto::runtime::KMap::new();
-            for (k, v) in tools.iter() {
-                if let Some(metadata) = v.as_table() {
-                    if let Some(path_entry) = metadata.get("path") {
-                        if let Some(path) = path_entry.as_str() {
-                            ns_mod_tools.insert(k.as_str(), mod_dir.join(path).to_str().unwrap());
-                        }
-                    }
-                }
-            }
-            ns_tools.insert(mod_name.replace("-", "_").as_str(), ns_mod_tools);
-        }
+        let module_meta = ModuleMetadata::new(mod_dir.absolutize()?.as_ref());
+        module_map.insert(mod_name.replace("-", "_").as_str(), KObject::from(module_meta));
     }
 
-    let ns_metabuild = koto::runtime::KMap::new();
-    ns_metabuild.insert("tools", ns_tools);
-    koto.prelude().insert("metabuild", ns_metabuild);
+    let metabuild_map = KMap::new();
+    metabuild_map.insert("modules", module_map);
+    koto.prelude().insert("metabuild", metabuild_map);
     Ok(())
 }
 
