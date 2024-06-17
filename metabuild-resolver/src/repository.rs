@@ -77,8 +77,8 @@ impl BareRepository {
             RefType::Branch(branch) => format!("refs/heads/{}", branch),
         };
 
-        let oid = self.repo.revparse_single(&reference)?.id();
-        let tree = self.repo.find_commit(oid)?.tree()?;
+        let tree_id = self.repo.revparse_single(&reference)?.peel_to_tree()?.id();
+        let tree = self.repo.find_tree(tree_id)?;
         let path = Path::new(path);
         let entry = tree.get_path(path)?;
         let blob = self.repo.find_blob(entry.id())?;
