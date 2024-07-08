@@ -19,8 +19,10 @@ pub enum Commands {
     /// Run a metabuild script
     Run {
         /// Script file (defaults to main.koto)
-        #[arg(short, long)]
+        #[arg(value_name = "FILE")]
         file: Option<PathBuf>,
+        #[arg(last = true)]
+        args: Vec<String>,
     },
     /// Update metabuild
     Update,

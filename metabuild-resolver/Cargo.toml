@@ -6,21 +6,22 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.86"
 auth-git2 = "0.5.3"
-indexmap = { version = "2.2.6", features = ["serde"] }
+dirs = "5.0.1"
 git2 = "0.18.3"
+indexmap = { version = "2.2.6", features = ["serde"] }
+itertools = "0.13.0"
+log = "0.4.21"
 metabuild-git = { path = "../metabuild-git" }
+reqwest = "0.12.4"
 resolvo = "0.4.1"
-toml = "0.8.13"
+rustls-native-certs = "*"
 semver = "1.0.23"
 serde = { version = "1.0.203", features = ["derive"] }
 serde_json = "1.0.117"
-tracing = "0.1.40"
-itertools = "0.13.0"
-anyhow = "1.0.86"
-reqwest = "0.12.4"
-rustls-native-certs = "*"
-dirs = "5.0.1"
-yaml-rust = "0.4.5"
 tempfile = "3.10.1"
+toml = "0.8.13"
+tracing = "0.1.40"
 ureq = { version = "2.9.7", features = ["native-certs", "gzip", "tls", "json"] }
+yaml-rust = "0.4.5"

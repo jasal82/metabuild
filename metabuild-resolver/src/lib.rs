@@ -61,11 +61,12 @@ pub fn solve(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Error;
 
     #[test]
     fn test_solvable() -> Result<(), Error> {
         let temp_dir = tempfile::tempdir().unwrap();
-        let mut inventory = Inventory::new("https://github.com/jasal82/index.git", temp_dir.path());
+        let mut inventory = Inventory::new("https://github.com/jasal82/index.git", temp_dir.path(), &HashMap::new());
         inventory.update_cache()?;
         let mut dependencies: HashMap<String, semver::VersionReq> = HashMap::new();
         dependencies.insert("module1".to_string(), semver::VersionReq::parse("^1")?);
@@ -91,7 +92,7 @@ mod tests {
     #[test]
     fn test_unsolvable() -> Result<(), Error> {
         let temp_dir = tempfile::tempdir().unwrap();
-        let mut inventory = Inventory::new("https://github.com/jasal82/index.git", temp_dir.path());
+        let mut inventory = Inventory::new("https://github.com/jasal82/index.git", temp_dir.path(), &HashMap::new());
         inventory.update_cache()?;
         let mut dependencies: HashMap<String, semver::VersionReq> = HashMap::new();
         dependencies.insert("module1".to_string(), semver::VersionReq::parse("^1")?);

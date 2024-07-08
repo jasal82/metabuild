@@ -1,4 +1,5 @@
 use anyhow::Error;
+use log::{info, error};
 use std::collections::HashMap;
 #[cfg(unix)]
 use {std::fs::Permissions, std::os::unix::fs::PermissionsExt};
@@ -15,17 +16,11 @@ pub fn pinned_version() -> Option<semver::Version> {
             let content = std::fs::read_to_string(&version_file).unwrap();
             match semver::Version::parse(&content.trim()) {
                 Ok(version) => {
-                    crate::logging::info(format!(
-                        "Version pinned to {} by .mb-version file in {:?}",
-                        version, path
-                    ));
+                    info!("Version pinned to {} by .mb-version file in {:?}", version, path);
                     return Some(version);
                 }
                 Err(_e) => {
-                    crate::logging::error(format!(
-                        "Invalid version '{}' in .mb-version file {:?}",
-                        content, path
-                    ));
+                    error!("Invalid version {} in .mb-version file {:?}", content, path);
                     std::process::exit(1);
                 }
             }
@@ -42,7 +37,7 @@ pub fn running_on_buildserver() -> bool {
 }
 
 pub fn download_and_run(version: &semver::Version) -> Result<(), Error> {
-    crate::logging::info(format!("Downloading metabuild version {}", version));
+    info!("Downloading metabuild version {}", version);
     let mut path = std::env::current_dir()?;
     path.push(".mb");
     path.push("bin");
@@ -63,7 +58,7 @@ pub fn download_and_run(version: &semver::Version) -> Result<(), Error> {
         std::fs::set_permissions(&path, Permissions::from_mode(0o755)).unwrap();
     }
 
-    crate::logging::info(format!("Running pinned metabuild version {}", version));
+    info!("Running pinned metabuild version {}", version);
     let mut command = std::process::Command::new(&path);
     command.args(std::env::args().skip(1));
     let status = command.status()?;

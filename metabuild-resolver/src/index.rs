@@ -1,6 +1,7 @@
 use crate::repository::{BareRepository, RefType};
 use anyhow::Error;
 use indexmap::IndexMap;
+use log::debug;
 use std::path::Path;
 use yaml_rust::{YamlLoader, Yaml};
 
@@ -29,15 +30,22 @@ impl Index {
             .as_hash()
             .ok_or(anyhow::anyhow!("Failed to load module index"))?
         {
+            debug!("Processing index entry for {}", k.as_str().unwrap());
             let name = k.as_str().expect("Invalid key");
             let reference = if let Some(m) = v.as_hash() {
+                let server = m[&Yaml::from_str("server")].as_str().expect("Expected 'server' key").to_string();
+                let repo = m[&Yaml::from_str("repo")].as_str().expect("Expected 'repo' key").to_string();
+                let path = m[&Yaml::from_str("path")].as_str().expect("Expected 'path' key").to_string();
+                debug!("Artifactory source {},{},{}", server, repo, path);
                 LocationInfo::Artifactory {
-                    server: m[&Yaml::from_str("server")].as_str().expect("Expected 'server' key").to_string(),
-                    repo: m[&Yaml::from_str("repo")].as_str().expect("Expected 'repo' key").to_string(),
-                    path: m[&Yaml::from_str("path")].as_str().expect("Expected 'path' key").to_string()
+                    server,
+                    repo,
+                    path
                 }
             } else {
-                LocationInfo::Git(v.as_str().expect("Expected a string value").to_string())
+                let url = v.as_str().expect("Expected a string value").to_string();
+                debug!("Git source {}", url);
+                LocationInfo::Git(url)
             };
             data.insert(name.to_string(), reference);
         }

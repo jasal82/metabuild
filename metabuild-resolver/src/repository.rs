@@ -1,7 +1,8 @@
 use anyhow::Error;
 use git2::{AutotagOption, Repository};
-use std::path::Path;
 use git2::build::RepoBuilder;
+use log::debug;
+use std::path::Path;
 use tempfile::TempDir;
 use metabuild_git::*;
 
@@ -24,8 +25,11 @@ impl BareRepository {
             temp_dir.as_ref().unwrap().path()
         });
 
+        debug!("Preparing local working copy for repository url {url}");
+
         let repo = match Repository::open_bare(&path) {
             Ok(repo) => {
+                debug!("Opening existing bare repository at {:?}", path);
                 let mut remote = repo.find_remote("origin").unwrap();
                 if remote.url().unwrap() == url {
                     let git_config = make_git_config()?;
@@ -37,13 +41,16 @@ impl BareRepository {
                     repo
                 } else {
                     // Remote URL has changed, need to delete and re-clone
+                    debug!("Remote url has changed, deleting local working copy");
                     drop(remote);
                     drop(repo);
                     std::fs::remove_dir_all(&path)?;
+                    debug!("Cloning new bare repository into {:?}", path);
                     BareRepository::clone(url, path)?
                 }
             }
             Err(_) => {
+                debug!("Cloning new bare repository into {:?}", path);
                 BareRepository::clone(url, path)?
             }
         };

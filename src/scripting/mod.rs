@@ -1,9 +1,7 @@
 use anyhow::{Context, Error};
 use koto::Koto;
 use koto::{derive::*, prelude::*};
-use std::collections::HashMap;
 use std::fs;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use path_absolutize::Absolutize;
 
@@ -80,7 +78,7 @@ fn load_dynamic_modules(koto: &mut Koto) -> Result<(), anyhow::Error> {
 }
 
 fn inject_resources(koto: &mut Koto) -> Result<(), Error> {
-    let mut module_map = KMap::new();
+    let module_map = KMap::new();
     let manifest_files = glob::glob("./.mb/deps/*/manifest.toml")?;
     for mf in manifest_files {
         let mf = mf?;
