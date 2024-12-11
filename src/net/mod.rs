@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
 
 pub fn download_file(
     url: &str,
@@ -8,7 +7,6 @@ pub fn download_file(
     headers: &HashMap<String, String>,
 ) -> Result<(), anyhow::Error> {
     let agent = ureq::builder()
-        .tls_config(Arc::new(crate::TLS_CONFIG.clone()))
         .try_proxy_from_env(true)
         .build();
     let mut body = agent.get(url);
@@ -28,7 +26,6 @@ pub fn upload_file(
     headers: &HashMap<String, String>,
 ) -> Result<(), anyhow::Error> {
     let agent = ureq::builder()
-        .tls_config(Arc::new(crate::TLS_CONFIG.clone()))
         .build();
     let mut body = agent.put(url);
     for (key, value) in headers {

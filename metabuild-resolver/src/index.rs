@@ -1,66 +1,68 @@
 use crate::repository::{BareRepository, RefType};
 use anyhow::Error;
 use indexmap::IndexMap;
-use log::debug;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
-use yaml_rust::{YamlLoader, Yaml};
 
-pub enum LocationInfo {
-    Git(String),
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum Entry {
+    Git {
+        url: String,
+    },
     Artifactory {
         server: String,
         repo: String,
-        path: String
-    },
+        path: String,
+    }
 }
 
 pub struct Index {
-    data: IndexMap<String, LocationInfo>,
+    repo: BareRepository,
+    reftype: RefType,
+    data: IndexMap<String, Entry>,
 }
 
 impl Index {
-    pub fn new(url: &str, ref_type: &RefType, path: &Path) -> Result<Self, Error> {
-        let repo = BareRepository::new(url, Some(path))?;
-
-        let mut data: IndexMap<String, LocationInfo> = IndexMap::new();
-        let index_contents = repo.get_file(&ref_type, Path::new("index.yaml"))?;
-        let index = YamlLoader::load_from_str(&String::from_utf8_lossy(&index_contents))?;
-        let doc = &index[0];
-        for (k, v) in doc
-            .as_hash()
-            .ok_or(anyhow::anyhow!("Failed to load module index"))?
-        {
-            debug!("Processing index entry for {}", k.as_str().unwrap());
-            let name = k.as_str().expect("Invalid key");
-            let reference = if let Some(m) = v.as_hash() {
-                let server = m[&Yaml::from_str("server")].as_str().expect("Expected 'server' key").to_string();
-                let repo = m[&Yaml::from_str("repo")].as_str().expect("Expected 'repo' key").to_string();
-                let path = m[&Yaml::from_str("path")].as_str().expect("Expected 'path' key").to_string();
-                debug!("Artifactory source {},{},{}", server, repo, path);
-                LocationInfo::Artifactory {
-                    server,
-                    repo,
-                    path
-                }
-            } else {
-                let url = v.as_str().expect("Expected a string value").to_string();
-                debug!("Git source {}", url);
-                LocationInfo::Git(url)
-            };
-            data.insert(name.to_string(), reference);
-        }
-
-        Ok(Self { data })
+    pub fn new(url: &str, branch: &str, storage_path: &Path) -> Result<Self, Error> {
+        let repo = BareRepository::new(url, Some(storage_path))?;
+        let reftype = RefType::Branch(branch.to_string());
+        let index_contents = repo.get_file(&reftype, Path::new("index.json"))?;
+        let data = serde_json::from_str(&String::from_utf8_lossy(&index_contents))?;
+        Ok(Self { repo, reftype, data })
     }
 
-    pub fn get_packages(&self) -> Result<Vec<&str>, Error> {
+    pub fn get_entries(&self) -> Result<Vec<&str>, Error> {
         Ok(self.data.keys().map(|k| k.as_str()).collect())
     }
 
-    pub fn get_package_location(&self, package_name: &str) -> Result<&LocationInfo, Error> {
+    pub fn get_entry(&self, name: &str) -> Result<&Entry, Error> {
         self.data
-            .get(package_name)
-            .ok_or(anyhow::anyhow!("Package not found ({package_name})"))
+            .get(name)
+            .ok_or(anyhow::anyhow!("No index entry found for '{name}'"))
+    }
+
+    pub fn add_entry(&mut self, name: &str, entry: Entry) -> Result<(), Error> {
+        self.data.insert(name.to_string(), entry);
+        self.save_index()
+    }
+
+    pub fn remove_entry(&mut self, name: &str) -> Result<(), Error> {
+        self.data.shift_remove(name);
+        self.save_index()
+    }
+
+    pub fn revert(&mut self) -> Result<(), Error> {
+        self.repo.revert(&self.reftype)
+    }
+
+    pub fn push(&self) -> Result<(), Error> {
+        self.repo.push(&self.reftype)
+    }
+
+    fn save_index(&self) -> Result<(), Error> {
+        let index_contents = serde_json::to_string_pretty(&self.data)?;
+        self.repo.update_file_and_commit(&self.reftype, "index.json", index_contents.as_bytes(), "Update index").map(|_| ())
     }
 }
 

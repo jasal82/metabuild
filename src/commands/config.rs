@@ -16,19 +16,13 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Reflect, Default)]
 pub struct ConfigData {
-    pub index_url: Option<String>,
-    #[serde(default)]
+    pub index: Option<String>,
     pub artifactory_token: HashMap<String, String>,
 }
 
 pub enum ConfigScope {
     Global,
     Local,
-}
-
-enum ConfigKey {
-    IndexUrl,
-    ArtifactoryToken(String),
 }
 
 impl Config {
@@ -47,13 +41,13 @@ impl Config {
                 .unwrap_or(String::new())
                 .as_str(),
         )
-        .unwrap();
+        .unwrap_or_default();
         let local = toml::from_str(
             std::fs::read_to_string(".mb/config.toml")
                 .unwrap_or(String::new())
                 .as_str(),
         )
-        .unwrap();
+        .unwrap_or_default();
 
         Config {
             figment,
@@ -67,30 +61,12 @@ impl Config {
         std::fs::create_dir_all(dirs::home_dir().unwrap().join(".mb"))?;
         std::fs::write(
             dirs::home_dir().unwrap().join(".mb/config.toml"),
-            toml::to_string(&self.global)?,
+            toml::to_string_pretty(&self.global)?,
         )?;
 
         std::fs::create_dir_all(".mb")?;
-        std::fs::write(".mb/config.toml", toml::to_string(&self.local)?)?;
+        std::fs::write(".mb/config.toml", toml::to_string_pretty(&self.local)?)?;
         Ok(())
-    }
-
-    fn parse_key(key: &str) -> Result<ConfigKey, Error> {
-        if let Some(start) = key.find('[') {
-            if key.ends_with(']') {
-                let k = &key[..start];
-                let i = &key[start+1..key.len()-1];
-                return match k {
-                    "artifactory_token" => Ok(ConfigKey::ArtifactoryToken(i.to_string())),
-                    _ => Err(anyhow!("Invalid key '{k}'"))
-                }
-            }
-        }
-
-        match key {
-            "index_url" => Ok(ConfigKey::IndexUrl),
-            _ => Err(anyhow!("Invalid key '{key}'"))
-        }
     }
 
     pub fn set(&mut self, key: &str, value: &str, scope: ConfigScope) -> Result<(), Error> {
@@ -99,25 +75,48 @@ impl Config {
             ConfigScope::Local => &mut self.local,
         };
 
-        match Self::parse_key(key)? {
-            ConfigKey::IndexUrl => {
-                println!("Set config 'index_url'");
-                target.index_url = Some(value.to_owned());
+        match key {
+            "index" => {
+                println!("Set config 'index'");
+                target.index = Some(value.to_owned());
                 self.write_and_update()
             },
-            ConfigKey::ArtifactoryToken(url) => {
-                println!("Set config 'artifactory_token.{url}'");
-                target.artifactory_token.insert(url.to_string(), value.to_owned());
-                self.write_and_update()
+            _ => {
+                println!("Invalid config key");
+                Err(anyhow!("Invalid config key"))
+            },
+        }
+    }
+
+    pub fn set_token(&mut self, url: &str, token: &str, scope: ConfigScope) -> Result<(), Error> {
+        let target = match scope {
+            ConfigScope::Global => &mut self.global,
+            ConfigScope::Local => &mut self.local,
+        };
+
+        println!("Set artifactory token for url '{}'", url);
+        target.artifactory_token.insert(url.to_owned(), token.to_owned());
+        self.write_and_update()
+    }
+
+    pub fn get(&mut self, key: &str) -> Result<&str, Error> {
+        match key {
+            "index" => {
+                self.merged.index.as_ref().map(String::as_str).ok_or(anyhow!("Config 'index' is not set"))
+            },
+            _ => {
+                println!("Invalid config key");
+                Err(anyhow!("Invalid config key"))
             }
         }
     }
 
-    pub fn get(&mut self, key: &str) -> Result<&str, Error> {
-        match Self::parse_key(key)? {
-            ConfigKey::IndexUrl => self.merged.index_url.as_ref().map(String::as_str).ok_or(anyhow!("index_url is not set")),
-            ConfigKey::ArtifactoryToken(url) => self.merged.artifactory_token.get(&url).map(String::as_str).ok_or(anyhow!("artifactory_token.{url} is not set")),
-        }
+    pub fn get_token(&mut self, url: &str) -> Result<&str, Error> {
+        self.merged
+            .artifactory_token
+            .get(url)
+            .map(String::as_str)
+            .ok_or(anyhow!("Artifactory token for url '{}' is not set", url))
     }
 
     pub fn remove(&mut self, key: &str, scope: ConfigScope) -> Result<(), Error> {
@@ -126,27 +125,36 @@ impl Config {
             ConfigScope::Local => &mut self.local,
         };
 
-        match Self::parse_key(key)? {
-            ConfigKey::IndexUrl => {
-                if target.index_url.is_some() {
-                    println!("Removed config 'index_url'");
-                    target.index_url = None;
+        match key {
+            "index" => {
+                if target.index.is_some() {
+                    println!("Removed config 'index'");
+                    target.index = None;
                     self.write_and_update()
                 } else {
                     println!("Nothing to remove");
                     Ok(())
                 }
             },
-            ConfigKey::ArtifactoryToken(url) => {
-                if target.artifactory_token.contains_key(&url) {
-                    println!("Removed config 'artifactory_token.{url}'");
-                    target.artifactory_token.remove(&url);
-                    self.write_and_update()
-                } else {
-                    println!("Nothing to remove");
-                    Ok(())
-                }
-            },
+            _ => {
+                println!("Invalid config key");
+                Err(anyhow!("Invalid config key"))
+            }
+        }
+    }
+
+    pub fn remove_token(&mut self, url: &str, scope: ConfigScope) -> Result<(), Error> {
+        let target = match scope {
+            ConfigScope::Global => &mut self.global,
+            ConfigScope::Local => &mut self.local,
+        };
+
+        if target.artifactory_token.remove(url).is_some() {
+            println!("Removed artifactory token for url '{}'", url);
+            self.write_and_update()
+        } else {
+            println!("Nothing to remove");
+            Ok(())
         }
     }
 
@@ -168,20 +176,6 @@ impl Config {
                                 figment_source
                             );
                         }
-                    } else if let Some(hash) = reflect_value.downcast_ref::<HashMap<String, String>>() {
-                        println!("{}:", field_name);
-                        for (k, v) in hash {
-                            let path = if k.contains(".") {
-                                format!(r#"{field_name}."{k}""#)
-                            } else {
-                                format!("{field_name}.{k}")
-                            };
-                            let figment_value = self.figment.find_value(path.as_str()).expect("Failed to retrieve figment value");
-                            let figment_source = self.figment.get_metadata(figment_value.tag())
-                                .expect("Failed to retrieve figment metadata")
-                                .source.as_ref().expect("Failed to retrieve figment source");
-                            println!("  {}: {} ({})", k, v, figment_source);
-                        }
                     }
                 }
             }
@@ -191,8 +185,7 @@ impl Config {
     }
 
     pub fn list(&self) -> Result<(), Error> {
-        println!("index_url: URL of the package index; can be overridden in the project's manifest.toml; only SSH protocol is supported");
-        println!("artifactory_token.[url]: Token to use for authentication at the Artifactory server with the specified URL");
+        println!("index: URL of the package index; can be overridden in the project's manifest.toml; only SSH protocol is supported");
         Ok(())
     }
 }

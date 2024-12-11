@@ -1,7 +1,6 @@
 use koto::{derive::*, prelude::*, Result};
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::sync::Arc;
 
 pub fn make_module() -> KMap {
     let result = KMap::with_type("http");
@@ -29,7 +28,6 @@ impl Client {
     pub fn new() -> Self {
         Self {
             client: ureq::builder()
-                .tls_config(Arc::new(crate::TLS_CONFIG.clone()))
                 .build(),
         }
     }

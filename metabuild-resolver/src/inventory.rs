@@ -14,7 +14,7 @@ use std::str::FromStr;
 use toml::Value;
 use ureq;
 
-use crate::index::{Index, LocationInfo};
+use crate::index::{Index, Entry};
 use crate::package::{Package, Version, VersionReq};
 use crate::repository::{BareRepository, RefType};
 
@@ -92,20 +92,36 @@ impl MetadataRetriever for ArtifactoryMetadataRetriever {
             request = request.set("Authorization", format!("Bearer {token}").as_str());
         }
 
-        let response: AqlResult = request
-            .send_string(&query)?
-            .into_json()?;
+        let server_response = request.send_string(&query);
+        match server_response {
+            Ok(server_response) => {
+                let response: AqlResult = server_response.into_json()?;
+                let mut versions = Vec::new();
+                for file in response.results {
+                    if let Some(version_str) = file.path.split('/').last() {
+                        debug!("Found version {version_str}");
+                        versions.push(version_str.to_string());
+                    }
+                }
 
-        let mut versions = Vec::new();
-
-        for file in response.results {
-            if let Some(version_str) = file.path.split('/').last() {
-                debug!("Found version {version_str}");
-                versions.push(version_str.to_string());
+                Ok(versions)
+            },
+            Err(e) => {
+                if let Some(response) = e.into_response() {
+                    match response.status() {
+                        403 => {
+                            println!("Artifactory returned 403 Forbidden. Do you have a token configured for this url?");
+                            Err(anyhow::anyhow!("Server returned code 403: {}", response.into_string()?))
+                        },
+                        code => {
+                            Err(anyhow::anyhow!("Server returned code {}: {}", code, response.into_string()?))
+                        }
+                    }
+                } else {
+                    Err(anyhow::anyhow!("Unexpected error"))
+                }
             }
         }
-
-        Ok(versions)
     }
 
     fn fetch_package_manifest(&self, version: &str) -> Result<Value, Error> {
@@ -137,27 +153,17 @@ impl MetadataRetriever for ArtifactoryMetadataRetriever {
 }
 
 pub struct Inventory<'a> {
-    index: Index,
+    index: &'a Index,
     pool: Rc<Pool<VersionReq>>,
     index_cache: IndexMap<String, IndexMap<Version, Package>>,
-    cache_path: PathBuf,
+    cache_file: PathBuf,
     git_cache_path: PathBuf,
-    artifactory_token: &'a HashMap<String, String>,
+    artifactory_tokens: &'a HashMap<String, String>,
 }
 
 impl<'a> Inventory<'a> {
-    pub fn new(index_url: &str, cache_path: &Path, artifactory_token: &'a HashMap<String, String>) -> Result<Self, Error> {
-        let index_cache_path = cache_path.join("index");
-        std::fs::create_dir_all(&index_cache_path)?;
-        debug!("Storing index cache in {:?}", index_cache_path);
-
-        let index = Index::new(
-            index_url,
-            &RefType::Branch(String::from("main")),
-            &index_cache_path
-        )?;
-
-        let git_cache_path = cache_path.join("git");
+    pub fn new(index: &'a Index, inventory_path: &Path, artifactory_tokens: &'a HashMap<String, String>) -> Result<Self, Error> {
+        let git_cache_path: PathBuf = inventory_path.join("git");
         std::fs::create_dir_all(&git_cache_path)?;
         debug!("Storing git caches in {:?}", git_cache_path);
 
@@ -165,19 +171,19 @@ impl<'a> Inventory<'a> {
             index,
             pool: Rc::new(Pool::new()),
             index_cache: IndexMap::new(),
-            cache_path: cache_path.to_path_buf(),
+            cache_file: inventory_path.join("cache.json"),
             git_cache_path,
-            artifactory_token
+            artifactory_tokens
         })
     }
 
-    fn make_metadata_retriever(&self, name: &str, location_info: &LocationInfo) -> Result<Box<dyn MetadataRetriever>, Error> {
-        match location_info {
-            LocationInfo::Git(url) => {
+    fn make_metadata_retriever(&self, name: &str, index_entry: &Entry) -> Result<Box<dyn MetadataRetriever>, Error> {
+        match index_entry {
+            Entry::Git { url } => {
                 debug!("Using Git metadata retriever");
                 Ok(Box::new(GitMetadataRetriever::new(name, url, self.git_cache_path.as_path())?))
             },
-            LocationInfo::Artifactory { server, repo, path } => {
+            Entry::Artifactory { server, repo, path } => {
                 debug!("Using Artifactory metadata retriever");
                 let token = self.find_artifactory_token(server);
                 Ok(Box::new(ArtifactoryMetadataRetriever::new(server, repo, path, token)))
@@ -186,7 +192,7 @@ impl<'a> Inventory<'a> {
     }
 
     pub fn find_artifactory_token(&self, url: &str) -> Option<&str> {
-        for (u, t) in self.artifactory_token {
+        for (u, t) in self.artifactory_tokens {
             if url.starts_with(u) {
                 return Some(t)
             }
@@ -208,16 +214,15 @@ impl<'a> Inventory<'a> {
     }
 
     pub fn update_cache(&mut self) -> Result<(), Error> {
-        let cache_file = self.cache_path.join("cache.json");
-        let cache_contents = std::fs::read_to_string(&cache_file).unwrap_or_default();
+        let cache_contents = std::fs::read_to_string(&self.cache_file).unwrap_or_default();
         if cache_contents.len() > 0 {
-            debug!("Reading existing cache from {:?}", cache_file);
+            debug!("Reading existing cache from {:?}", &self.cache_file);
             self.index_cache = serde_json::from_str(&cache_contents)?;
         }
 
-        for module in self.index.get_packages()? {
-            let location_info = self.index.get_package_location(&module)?;
-            let metadata_retriever = self.make_metadata_retriever(module, location_info)?;
+        for module in self.index.get_entries()? {
+            let index_entry = self.index.get_entry(&module)?;
+            let metadata_retriever = self.make_metadata_retriever(module, index_entry)?;
             let versions = metadata_retriever.fetch_versions()?;
             for ref version in versions {
                 let download_manifest = match self.index_cache.get(module) {
@@ -246,7 +251,7 @@ impl<'a> Inventory<'a> {
             }
         }
         let updated_cache_contents = serde_json::to_string_pretty(&self.index_cache)?;
-        std::fs::write(&cache_file, updated_cache_contents)?;
+        std::fs::write(&self.cache_file, updated_cache_contents)?;
         Ok(())
     }
 
@@ -339,7 +344,7 @@ mod tests {
     #[test]
     fn test_update_cache() -> Result<(), anyhow::Error> {
         let temp_dir = tempfile::tempdir().unwrap();
-        let mut inventory = Inventory::new("https://github.com/jasal82/index.git", temp_dir.path(), &HashMap::new());
+        let mut inventory = Inventory::new("https://github.com/jasal82/index.git", temp_dir.path(), &Vec::new());
         inventory.update_cache()
     }
 }

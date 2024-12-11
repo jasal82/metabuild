@@ -2,7 +2,7 @@ use crate::commands::config::ConfigData;
 use crate::git;
 use anyhow::Error;
 use flate2::read::GzDecoder;
-use metabuild_resolver::{inventory::Inventory, index::LocationInfo, solve};
+use metabuild_resolver::{inventory::Inventory, index::{Index, Entry}, solve};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io;
@@ -73,22 +73,6 @@ fn clear_or_create_directory(path: &Path) -> io::Result<()> {
     std::fs::create_dir_all(&path)
 }
 
-fn get_index_url(config: &ConfigData, manifest: &toml::Table) -> Result<String, Error> {
-    let url = manifest.get("registries")
-        .and_then(toml::Value::as_table)
-        .and_then(|registries| registries.get("default"))
-        .and_then(toml::Value::as_str)
-        .or(config.index_url.as_ref().map(String::as_str))
-        .expect("No index URL specified in project or global config")
-        .to_string();
-
-    if url.starts_with("http") {
-        return Err(anyhow::anyhow!("HTTP(S) index URLs are currently not supported"));
-    }
-
-    Ok(url)
-}
-
 fn parse_dependencies(manifest: &toml::Table) -> Result<HashMap<String, semver::VersionReq>, Error> {
     let dependency_table = manifest.get("dependencies")
         .and_then(toml::Value::as_table);
@@ -104,20 +88,20 @@ fn parse_dependencies(manifest: &toml::Table) -> Result<HashMap<String, semver::
 }
 
 pub fn install_dependencies(
+    index: &Index,
     config: &ConfigData,
     manifest: &toml::Table,
+    storage_path: &Path,
 ) -> Result<(), Error> {
     // Clear module installation path if it exists or create it
-    let dependencies_path = Path::new(".mb").join("deps");
+    let dependencies_path = storage_path.join("deps");
     clear_or_create_directory(dependencies_path.as_path())?;
 
-    let index_url = get_index_url(config, manifest)?;
-    println!("Using index {index_url}");
-
-    let dependencies = parse_dependencies(manifest)?;
+    let dependencies: HashMap<String, semver::VersionReq> = parse_dependencies(manifest)?;
 
     println!("Updating cache...");
-    let mut inventory = Inventory::new(&index_url, Path::new(".mb").join("cache").as_path(), &config.artifactory_token)?;
+    let inventory_path = storage_path.join("inventory");
+    let mut inventory = Inventory::new(&index, &inventory_path, &config.artifactory_token)?;
     inventory.update_cache()?;
 
     println!("Resolving dependencies...");
@@ -125,21 +109,21 @@ pub fn install_dependencies(
         Ok(result) => {
             println!("Installing dependencies...");
             let git_installer = GitInstaller {};
-            let artifactory_installer = ArtifactoryInstaller {};
+            let artifactory_installer: ArtifactoryInstaller = ArtifactoryInstaller {};
             for (dep_name, dep_version) in result {
-                let dep_location = inventory.index().get_package_location(&dep_name)?;
-                let source = match dep_location {
-                    LocationInfo::Git(_) => "Git",
-                    LocationInfo::Artifactory {..} => "Artifactory",
+                let dep_entry = inventory.index().get_entry(&dep_name)?;
+                let source = match dep_entry {
+                    Entry::Git { .. } => "Git",
+                    Entry::Artifactory {..} => "Artifactory",
                 };
 
-                println!("  {dep_name}/{dep_version} (from {source})");
+                println!("  [*] {dep_name}/{dep_version} (from {source})");
 
-                match dep_location {
-                    LocationInfo::Git(url) => {
+                match dep_entry {
+                    Entry::Git { url } => {
                         git_installer.install(url, dep_name.as_str(), dep_version.to_string().as_str(), dependencies_path.as_path())?;
                     },
-                    LocationInfo::Artifactory { server, repo, path } => {
+                    Entry::Artifactory { server, repo, path } => {
                         artifactory_installer.install(server, repo, path, dep_name.as_str(), dep_version.to_string().as_str(), dependencies_path.as_path())?;
                     }
                 }

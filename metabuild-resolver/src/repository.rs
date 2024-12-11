@@ -1,5 +1,5 @@
 use anyhow::Error;
-use git2::{AutotagOption, Repository};
+use git2::{AutotagOption, Repository, Signature, Oid};
 use git2::build::RepoBuilder;
 use log::debug;
 use std::path::Path;
@@ -18,9 +18,9 @@ pub enum RefType {
 }
 
 impl BareRepository {
-    pub fn new(url: &str, cache_path: Option<&Path>) -> Result<Self, Error> {
+    pub fn new(url: &str, storage_path: Option<&Path>) -> Result<Self, Error> {
         let mut temp_dir = None;
-        let path = cache_path.unwrap_or_else(|| {
+        let path = storage_path.unwrap_or_else(|| {
             temp_dir = Some(tempfile::tempdir().expect("Failed to create temp dir"));
             temp_dir.as_ref().unwrap().path()
         });
@@ -30,7 +30,7 @@ impl BareRepository {
         let repo = match Repository::open_bare(&path) {
             Ok(repo) => {
                 debug!("Opening existing bare repository at {:?}", path);
-                let mut remote = repo.find_remote("origin").unwrap();
+                let mut remote = repo.find_remote("origin")?;
                 if remote.url().unwrap() == url {
                     let git_config = make_git_config()?;
                     let auth = make_git_authenticator();
@@ -90,6 +90,74 @@ impl BareRepository {
         let entry = tree.get_path(path)?;
         let blob = self.repo.find_blob(entry.id())?;
         Ok(blob.content().to_vec())
+    }
+
+    pub fn update_file_and_commit(&self, ref_type: &RefType, file_path: &str, file_contents: &[u8], commit_message: &str) -> Result<Oid, Error> {
+        let reference = match ref_type {
+            RefType::Tag(_) => {
+                return Err(anyhow::anyhow!("Cannot update file and commit on a tag reference"));
+            }
+            RefType::Branch(branch) => format!("refs/heads/{}", branch),
+        };
+
+        let obj = self.repo.revparse_single(&reference)?;
+        let commit = obj.peel_to_commit()?;
+        let blob_id = self.repo.blob(file_contents)?;
+        let mut tree_builder = self.repo.treebuilder(Some(&commit.tree()?))?;
+        tree_builder.insert(file_path, blob_id, 0o100644)?;
+        let tree_id = tree_builder.write()?;
+        let new_tree = self.repo.find_tree(tree_id)?;
+
+        let signature = Signature::now("xpm", "xpm@xpm")?;
+        let new_commit_id = self.repo.commit(
+            Some(&reference),
+            &signature,
+            &signature,
+            commit_message,
+            &new_tree,
+            &[&commit],
+        )?;
+
+        Ok(new_commit_id)
+    }
+
+    pub fn revert(&mut self, ref_type: &RefType) -> Result<(), Error> {
+        let reference = match ref_type {
+            RefType::Tag(_) => {
+                return Err(anyhow::anyhow!("No need to revert a tag reference"));
+            }
+            RefType::Branch(branch) => format!("refs/heads/{}", branch),
+        };
+    
+        let mut remote = self.repo.find_remote("origin")?;
+        let git_config = make_git_config()?;
+        let auth = make_git_authenticator();
+        let mut fetch_options = make_fetch_options(&auth, &git_config);
+        fetch_options.download_tags(AutotagOption::All);
+        remote.fetch(&[&reference], Some(&mut fetch_options), None)?;
+    
+        let fetch_head = self.repo.find_reference("FETCH_HEAD")?;
+        let fetch_commit = fetch_head.peel_to_commit()?;
+        let mut ref2 = self.repo.find_reference(&reference)?;
+        ref2.set_target(fetch_commit.id(), "Reverting to origin state")?;
+    
+        Ok(())
+    }
+
+    pub fn push(&self, ref_type: &RefType) -> Result<(), Error> {
+        let reference = match ref_type {
+            RefType::Tag(_) => {
+                return Err(anyhow::anyhow!("Cannot update file and commit on a tag reference"));
+            }
+            RefType::Branch(branch) => format!("refs/heads/{}", branch),
+        };
+
+        let mut remote = self.repo.find_remote("origin")?;
+        let git_config = make_git_config()?;
+        let auth = make_git_authenticator();
+        let mut push_options = make_push_options(&auth, &git_config);
+        remote.push(&[&reference], Some(&mut push_options))?;
+        Ok(())
     }
 }
 

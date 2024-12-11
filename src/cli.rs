@@ -24,6 +24,11 @@ pub enum Commands {
         #[arg(last = true)]
         args: Vec<String>,
     },
+    /// Interact with the index
+    Index {
+        #[command(subcommand)]
+        command: IndexCommands,
+    },
     /// Update metabuild
     Update,
     /// Interact with metabuild configuration
@@ -34,6 +39,60 @@ pub enum Commands {
 }
 
 #[derive(Subcommand)]
+pub enum IndexCommands {
+    /// Add a git source to the index
+    AddGit {
+        /// Name
+        name: String,
+        /// Url (SSH format)
+        url: String,
+        /// Index repository Url
+        #[arg(short, long)]
+        index: Option<String>,
+    },
+    /// Add an artifactory source to the index
+    AddArtifactory {
+        /// Name
+        name: String,
+        /// Server Url
+        server: String,
+        /// Repository
+        repo: String,
+        /// Path
+        path: String,
+        /// Index repository Url
+        #[arg(short, long)]
+        index: Option<String>,
+    },
+    /// Remove a source from the index
+    Remove {
+        /// Name
+        name: String,
+        /// Index repository Url
+        #[arg(short, long)]
+        index: Option<String>,
+    },
+    /// Revert the local index changes
+    Revert {
+        /// Index repository Url
+        #[arg(short, long)]
+        index: Option<String>,
+    },
+    /// Push the local index changes to the upstream repository
+    Push {
+        /// Index repository Url
+        #[arg(short, long)]
+        index: Option<String>,
+    },
+    /// List all sources in the index
+    List {
+        /// Index repository Url
+        #[arg(short, long)]
+        index: Option<String>,
+    }
+}
+
+#[derive(Subcommand)]
 pub enum ConfigCommands {
     /// Set a configuration value
     Set {
@@ -41,22 +100,42 @@ pub enum ConfigCommands {
         key: String,
         /// Configuration value
         value: String,
-        /// Set in global configuration file instead of local one
+        /// Set in local configuration file instead of global one
         #[arg(short, long, default_value = "false")]
-        global: bool,
+        local: bool,
+    },
+    SetToken {
+        /// Artifactory server name
+        server: String,
+        /// Artifactory token
+        token: String,
+        /// Set in local configuration file instead of global one
+        #[arg(short, long, default_value = "false")]
+        local: bool,
     },
     /// Retrieve a configuration value
     Get {
         /// Configuration name
         key: String,
     },
+    GetToken {
+        /// Artifactory server name
+        server: String,
+    },
     /// Remove a configuration value
     Remove {
         /// Configuration name
         key: String,
-        /// Remove from global configuration file instead of local one
+        /// Set in local configuration file instead of global one
         #[arg(short, long, default_value = "false")]
-        global: bool,
+        local: bool,
+    },
+    RemoveToken {
+        /// Artifactory server name
+        server: String,
+        /// Set in local configuration file instead of global one
+        #[arg(short, long, default_value = "false")]
+        local: bool,
     },
     /// Display all set configuration values
     Show,
