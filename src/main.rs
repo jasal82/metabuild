@@ -89,7 +89,7 @@ pub fn main() -> Result<(), anyhow::Error> {
     let mut config_figment = commands::config::Config::new();
     let config = &config_figment.merged;
 
-    let local_path = Path::new(".xpm");
+    let local_path = Path::new(".mb");
     
     let handle_index_command = |index: &Option<String>, f: &dyn Fn(&mut Index) -> Result<(), Error>| {
         if let Some(index_url) = index.as_ref().or(config.index.as_ref()) {

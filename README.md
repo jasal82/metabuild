@@ -111,6 +111,20 @@ to your project manifest.
 
 Documentation for the extra libraries will follow soon.
 
+#### Module resources
+
+Resources located in the installed script modules (see section about dependency
+management) can be accessed via the map `metabuild.modules`. That allows to load
+files from the packages directly from your scripts. So, for example, if you have
+a module `core` installed you can access the file `resources/data.txt` which is
+distributed with that module by using
+
+```
+resource_path = metabuild.modules.core.get_resource("resources/data.txt")
+f = io.open(resource_path)
+data = f.read_to_string()
+```
+
 ### Dependency management
 
 Metabuild has built-in dependency management support which uses decentralized
