@@ -205,7 +205,14 @@ in its root directory. Then all you have to do is run
 mb install
 ```
 
-to make Metabuild resolve the graph and install all dependencies.
+to make Metabuild resolve the graph and install all dependencies:
+
+```
+Updating cache...
+Resolving dependencies...
+Installing dependencies...
+  [*] core/1.0.1 (from Git)
+```
 
 Dependencies are installed in the directory `.mb/deps` and are automatically
 made available as module directories for the koto prelude so that the koto files
