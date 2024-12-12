@@ -39,11 +39,14 @@ fn add_common_prelude(koto: &mut Koto) {
     let prelude = koto.prelude();
     prelude.insert("arch", api::arch::make_module());
     prelude.insert("cmd", api::cmd::make_module());
+    prelude.insert("color", koto_color::make_module());
+    prelude.insert("geometry", koto_geometry::make_module());
     prelude.insert("git", api::git::make_module());
     prelude.insert("http", api::http::make_module());
     prelude.insert("io_ext", api::io::make_module());
     prelude.insert("json", koto_json::make_module());
     prelude.insert("net", api::net::make_module());
+    prelude.insert("random", koto_random::make_module());
     prelude.insert("regex", koto_regex::make_module());
     prelude.insert("sys", api::sys::make_module());
     prelude.insert("tempfile", koto_tempfile::make_module());
