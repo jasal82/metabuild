@@ -217,3 +217,232 @@ Installing dependencies...
 Dependencies are installed in the directory `.mb/deps` and are automatically
 made available as module directories for the koto prelude so that the koto files
 can be imported in your scripts.
+
+### Examples
+
+Here are some script examples that you can use as reference.
+
+#### Python venv wrapper
+
+This module defines a `venv` class which allows managing Python virtual
+environments:
+
+```python
+build_binary_dir = |path|
+    match os.name()
+        "windows" then io.extend_path(io_ext.absolute(path), "Scripts")
+        unmatched then io.extend_path(io_ext.absolute(path), "bin")
+
+find_interpreter_global = ||
+    return io_ext.which("python3") or io_ext.which("python")
+
+find_interpreter_local = |path|
+    return io_ext.which_in("python3", path) or io_ext.which_in("python", path)
+
+export venv = |path|
+    path: path
+    bin_dir: build_binary_dir(path)
+    interpreter_global: find_interpreter_global()
+    interpreter_local: find_interpreter_local(build_binary_dir(path))
+    suppress_output: false
+
+    quiet: |value|
+        self.suppress_output = value
+    
+    exists: ||
+        io_ext.is_dir(self.path) and self.interpreter_local != null
+    
+    init: ||
+        core.run(self.interpreter_global, ["-m", "venv", self.path])
+        self.interpreter_local = find_interpreter_local(self.path)
+    
+    run: |command|
+        c = cmd.new(command[0]).args(command[1..]).env_remove("PYTHONHOME")
+        entry_separator = match os.name()
+            "windows" then ";"
+            _ then ":"
+        path_variable = sys.env().contains_key("Path") and "Path" or "PATH"
+        c.env(
+            path_variable,
+            self.bin_dir + entry_separator + sys.env().get(path_variable)
+        )
+        if self.suppress_output
+            c.stdout("null")
+            c.stderr("null")
+        c.execute()
+    
+    install_requirements: |file|
+        self.run([self.interpreter_local, "-m", "pip", "install", "-r", file])
+    
+    python: |command|
+        self.run([self.interpreter_local, "-c", command])
+
+    pip: |command|
+        self.run([self.interpreter_local, "-m", "pip", command])
+```
+
+It can be used as follows:
+
+```scala
+v = venv(".venv")
+if !v.exists()
+    v.init()
+v.install_requirements("requirements.txt")
+v.pip("install conan==2.9")
+v.run("conan install .")
+```
+
+#### Filesystem interaction
+
+```python
+# Create a temporary directory (will be deleted when the object is dropped)
+tempdir = io_ext.temp_dir()
+
+# Copy all files matching a glob into the tempdir
+io_ext.copy_glob("**/*.xml", tempdir.path())
+
+# Create and write a temporary file
+tempfile = io_ext.temp_file()
+tempfile.write_line("Hello world")
+
+# Rewind file and read back data
+tempfile.seek(0)
+hello = tempfile.read_to_string()
+
+# Find full path to the executable behind a shell command
+conan = io_ext.which("conan")
+```
+
+#### Archives
+
+```python
+# Create a .tar.gz archive
+targz = arch.targz("test.tar.gz")
+targz.append_file(io.extend_path(tempdir.path(), "test.xml"), "test.xml")
+targz.append_dir_all("/tmp", "tmp")
+
+# Extract an archive
+dest = "/tmp/my/folder"
+io_ext.mkdirs(dest)
+arch.extract("test.tar.gz", dest)
+```
+
+#### TOML
+
+```python
+# Load TOML data
+config = toml.from_string(r'
+[core]
+version = "0.1.0"
+')
+print(config.core.version)
+
+# Save TOML data
+data =
+  core:
+    version: "0.1.0"
+toml_string = toml.to_string(data)
+```
+
+#### YAML
+
+```python
+# Load YAML data
+config = yaml.from_string(r'
+core:
+  version: 0.1.0
+')
+print(config.core.version)
+```
+
+#### JSON
+
+```python
+# Load JSON data
+config = json.from_string(r'
+{
+  "core": {
+    "version": "0.1.0"  
+  }
+}')
+print(config.core.version)
+```
+
+#### HTTP
+
+```python
+# Send a dummy GET request and display the status code and response
+client = http.client()
+request = client.get("https://reqres.in/api/users?page=2")
+response = request.call()
+status = response.status()
+payload = response.into_string()
+print("Status {status}")
+print("Payload {payload}")
+```
+
+#### Shell command and subprocess execution
+
+```python
+c = cmd.new("git").arg("--version")
+output = c.execute()
+print(output.stdout)
+
+cargs = cmd.split("git --version")
+c = cmd.new(cargs[0]).args(cargs[1..].to_list())
+output = c.execute()
+re = regex.new(r"git version (?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)")
+captures = re.captures output.stdout
+print("Git major version {captures.major.text()}")
+```
+
+#### Regex
+
+```python
+# Replace
+s = "2021-03-15, 2022-04-16 and 2023-05-17"
+re = regex.new(r"(?P<y>\d{4})-(?P<m>\d{2})-(?P<d>\d{2})")
+print(re.replace_all(s, "$m/$d/$y"))
+
+# Find all
+s = "This is a test string for the find all function"
+re = regex.new(r"f\w*")
+matches = re.find_all(s)
+for m in matches
+  print(m.text())
+```
+
+#### String templates
+
+```python
+context =
+  size: "small"
+  color: "red"
+
+template = r'
+{
+  "size": "{{ size }}",
+  "color": "{{ color }}"
+}'
+
+s = utils.template(template, context)
+print(s)
+```
+
+#### Unit testing
+
+```python
+testsuite =
+  @test pow: ||
+    x = 2.pow 3
+    assert_eq x, 8
+
+  @test abs: ||
+    x = -1.abs()
+    assert_eq x, 1
+
+try
+  test.run_tests testsuite
+catch _
+  print "A test failed"
+```

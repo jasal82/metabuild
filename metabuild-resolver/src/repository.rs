@@ -108,7 +108,7 @@ impl BareRepository {
         let tree_id = tree_builder.write()?;
         let new_tree = self.repo.find_tree(tree_id)?;
 
-        let signature = Signature::now("xpm", "xpm@xpm")?;
+        let signature = Signature::now("mb", "mb@metabuild")?;
         let new_commit_id = self.repo.commit(
             Some(&reference),
             &signature,
